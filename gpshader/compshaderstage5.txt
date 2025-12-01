@@ -1,0 +1,457 @@
+
+#version 460 core
+
+layout(local_size_x = 1,local_size_y = 1,local_size_z = 1) in;
+layout(std430,binding = 0) buffer rotdata{
+	vec3 scale;
+	vec4 rot[10*1000];
+};
+layout(std430,binding = 1) buffer facedata{
+	vec3 Faces[10*1000*3];
+};
+layout(std430,binding = 2) buffer trilist{
+	int tripos1[1000*5000];
+};
+layout(std430,binding = 3) buffer trilist2{
+	int tripos2[1000*5000];
+};
+layout(std430,binding = 4) buffer trilist3{
+	int tripos3[1000*5000];
+};
+layout(std430,binding = 5) buffer cubelist{
+	ivec3 cubepos1[1000];
+};
+layout(std430,binding = 6) buffer cubelist2{
+	ivec3 cubepos2[1000];
+};
+layout(std430,binding = 7) buffer cubelist3{
+	ivec3 cubepos3[1000];
+};
+layout(std430, binding = 8) buffer tracking{
+	int tracker[10];
+};
+layout(std430, binding = 9) buffer finalCubes{
+	ivec3 highpos;
+	ivec3 midpos;
+	int granularEnd;
+	int toplevel[1000*1000*5];
+	ivec4 granular[1000*1000];
+};
+
+layout(std430, binding = 10) buffer pixels{
+	ivec2 pixelWidth;
+	vec4 pixelBuffer[1920*1080];
+};
+layout(std430, binding =11) buffer floatDebug{
+    vec4 floatd[1000*1000];
+};
+layout(std430, binding = 12) buffer transform{
+	mat3 projection;
+};
+layout(std430, binding =13) buffer intDebug{
+    ivec4 intd[1000*1000];
+};
+layout(std430, binding = 14) buffer lattice{
+	int latticeInc;
+	ivec4 finalLattice[200*1000*27];
+};
+layout(std430, binding = 15) buffer lattice2{
+	ivec4 finalLattice2[200*1000*27];
+};
+layout(std430, binding = 16) buffer lattice3{
+	ivec4 finalLattice3[200*1000*27];
+};
+layout(std430, binding = 17) buffer lattice4{
+	ivec4 finalLattice4[200*1000*27];
+};
+layout(std430, binding = 18) buffer lattice5{
+	ivec4 finalLattice5[200*1000*27];
+};
+vec3 corner[8];
+int adj[12][6];
+int triiter = 0;
+uniform uint u_WorkGroupOffset;
+int get_line(int x, int y,int count,vec4 intersection[10]){
+	int ret = -1;
+	int counter = 0;
+	for(int i = 0; i < count; i++){
+		for(int e = 0; e <6; e++){
+			if(intersection[i].w == adj[x][e] && intersection[i].w != y){
+				ret = i;
+				counter++;
+			}
+			if(counter ==1){
+				i = 13;
+			}
+		}
+	}
+	return ret;
+}
+
+void set_lattice(int pos, int adj, ivec4 add){
+	int t = pos;
+	if(t  < 200*1000){
+		finalLattice[pos*27 + adj] = add;
+	}
+	if(t >= 200*1000 && t  < 400*1000){
+		finalLattice2[pos*27 + adj - 200*1000*27] = add;
+	}
+	if(t >= 400*1000 && t  < 600*1000){
+		finalLattice3[pos*27 + adj - 400*1000*27] = add;
+	}
+	if(t >= 600*1000 && t  < 800*1000){
+		finalLattice4[pos*27 + adj -600*1000*27] = add;
+	}
+	if(t >= 800*1000 && t  < 1000*1000){
+		finalLattice5[pos*27 + adj-800*1000*27] = add;
+	}
+}
+ivec4 get_lattice(int pos, int adj){
+	int t = pos;
+	if(t  < 200*1000){
+		return finalLattice[pos*27 + adj];
+	}
+	if(t >= 200*1000 && t  < 400*1000){
+		return finalLattice2[pos*27 + adj-200*1000*27];
+	}
+	if(t >= 400*1000 && t  < 600*1000){
+		return finalLattice3[pos*27 + adj-400*1000*27];
+	}
+	if(t >= 600*1000 && t  < 800*1000){
+		return finalLattice4[pos*27 + adj-600*1000*27];
+	}
+	if(t >= 800*1000 && t  < 1000*1000){
+		return finalLattice5[pos*27 + adj-800*1000*27];
+	}
+	return ivec4(-1,-1,-1,-1);
+}
+int get_trilist1(int x, int y, int z, int w){
+	return tripos1[x*highpos.z*highpos.y*5000 + y*highpos.z*5000 + z*5000 + w];
+};
+int get_trilist2(int x, int y, int z, int w){
+	return tripos2[x*100*5000 + y*10*5000 + z*5000 + w];
+};
+int get_trilist3(int x, int y, int z, int w){
+	return tripos3[x*100*5000 + y*10*5000 + z*5000 + w];
+};
+void set_trilist1(int x, int y, int z, int add){
+	tripos1[x*highpos.z*highpos.y*5000 + y*highpos.z*5000 + z*5000 + triiter] = add;
+};
+void set_trilist2(int x, int y, int z, int add){
+	tripos2[x*10*10*5000 + y*10*5000+ z*5000 + triiter] = add;
+};
+void set_trilist3(int x, int y, int z, int add){
+	tripos3[x*100*5000 + y*10*5000 + z*5000 + triiter] = add;
+};
+void set_cubelist3(int x,int y, int z){
+	int pos = atomicAdd(tracker[2],1);
+	cubepos3[pos] = ivec3(x,y,z);
+};
+void set_cubelist2(int x,int y, int z){
+	int pos = atomicAdd(tracker[1],1);
+	cubepos2[pos] = ivec3(x,y,z);
+};
+void set_cubelist1(int x,int y, int z){
+	int pos = atomicAdd(tracker[0],1);
+	cubepos1[pos] = ivec3(x,y,z);
+};
+ivec3 get_cubelist3(int x){
+	return cubepos3[x];
+};
+ivec3 get_cubelist2(int x){
+	return cubepos2[x];
+};
+ivec3 get_cubelist1(int x){
+	return cubepos1[x];
+};
+ivec3[2] get_borders(ivec3 coords){
+	ivec3 low = ivec3(0,0,0);
+	ivec3 high = ivec3(0,0,0);
+	if(coords.z%10 == 0){
+		low.z = -1;
+	}
+	if(coords.y%100 ==0){
+		low.y = -1;
+	}
+	if(coords.x%1000 == 0){
+		low.x = -1;
+	}
+	if(coords.z%10000 == 0){
+		high.z = -1;
+	}
+	if(coords.y%100000 == 0){
+		high.y = -1;
+	}
+	if(coords.x%1000000 == 0){
+		high.x = -1;
+	}
+
+	if((coords.z+1)%10 == 0){
+		low.z = 1;
+	}
+	if((coords.y+1)%100 == 0){
+		low.y = 1;
+	}
+	if((coords.x+1)%1000 == 0){
+		low.x = 1;
+	}
+	if((coords.z+1)%1000*10 == 0){
+		high.z = 1;
+	}
+	if((coords.y+1)%1000*10*10 == 0){
+		high.y = 1;
+	}
+	if((coords.x+1)%1000*10*10*10 == 0){
+		high.x = 1;
+	}
+	ivec3 boundaries[2];
+	boundaries[0] = low;
+	boundaries[1] = high;
+	return boundaries;
+}
+int[5] getTopLevel(ivec3 coords){
+	int[5] ret;
+	coords = (coords-coords%10)/10;
+	int place = coords.x*highpos.z*highpos.y*100*5 + coords.y*highpos.z*10*5 + coords.z*5;
+	for(int i = 0; i < 5;i++){
+		ret[i] = toplevel[place+i];
+	}
+	return ret;
+}
+ivec3[26] adjacent(ivec3 coord, ivec3 coord2){
+	ivec3 adjacent[26];
+	for(int i = 0; i < 26;i++){
+		adjacent[i] = ivec3(-1,-1,-1);
+	}
+	int meta[] = getTopLevel(coord2);
+	int rangeStart = meta[0];
+	int rangeEnd = meta[1];
+	if(rangeStart > 0 && coord.z >= 800 && coord.x > 10){
+		intd[10] = ivec4(rangeStart,rangeEnd,10,100);
+	}
+	int p = 0;
+	for(int i = rangeStart; i <= rangeEnd; i++){ 
+		ivec3 Ccoord = granular[i].xyz;
+		ivec3 check = coord- Ccoord;
+		if(check.x <=1 && check.y <= 1 && check.z <= 1){
+			if(check.x >= -1 && check.y >= -1 && check.z >= -1){
+				adjacent[p] = granular[i].xyz;
+			}
+		}
+	}
+	return adjacent;
+}
+int getAdjType(ivec3 coord1,ivec3 coord2){
+	ivec3 dif = coord1 - coord2;
+	return abs(dif.x)+abs(dif.y) +abs(dif.z);
+}
+
+bool adjacent2(ivec3 adjacent[26], ivec3 coord, int ref){
+	int p = 0;
+	bool rt = false;
+	for(int i = 0; i < 26; i++){
+		ivec3 candidate = adjacent[i];
+		if(candidate.x != -1){
+			ivec3 Ccoord = candidate;
+			ivec3 check = coord- Ccoord;
+			if(check.x <=1 && check.y <= 1 && check.z <= 1){
+				if(check.x >= -1 && check.y >= -1 && check.z >= -1){
+					int ty = getAdjType(Ccoord, coord);
+					if(ty <= ref && ty > 0){
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+
+ivec3 [7] getThree(ivec3 coords,ivec3 offset){
+	int i = 0;
+	ivec3 ret[7];
+	ret[0] = ivec3(-1,-1,-1);
+	ret[1] = ivec3(-1,-1,-1);
+	ret[2] = ivec3(-1,-1,-1);
+	ret[3] = ivec3(-1,-1,-1);
+	ret[4] = ivec3(-1,-1,-1);
+	ret[5] = ivec3(-1,-1,-1);
+	ret[6] = ivec3(-1,-1,-1);
+	ivec3 centre = coords + offset;
+	ivec3 newcoord;
+	newcoord = centre;
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[0] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+	}
+	//check the numbers here later
+	newcoord = centre + ivec3(-1,0,0);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	newcoord = centre + ivec3(-1,0,-1);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	newcoord = centre + ivec3(0,0,-1);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	newcoord = centre + ivec3(-1,-1,0);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;	
+	}
+	newcoord = centre + ivec3(0,-1,-1);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	newcoord = centre + ivec3(0,-1,0);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	newcoord = centre + ivec3(-1,-1,-1);
+	if(newcoord.x != coords.x && newcoord.y != coords.y && newcoord.z != coords.z){
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+	}
+	return ret;
+}
+ivec3[3] getTwo(ivec3 coords,ivec3 offset){
+	int i = 0;
+	ivec3 ret[3];
+	ret[0] = ivec3(-1,-1,-1);
+	ret[1] = ivec3(-1,-1,-1);
+	ret[2] = ivec3(-1,-1,-1);
+	ivec3 centre = coords + offset;
+	ivec3 newcoord;
+	newcoord = centre;
+	ret[0] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+	i++;
+	if(offset.x != 0){
+		newcoord.x = newcoord.x + offset.x;
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	if(offset.y != 0){
+		newcoord.y = newcoord.y + offset.y;
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	if(offset.z != 0){
+		newcoord.z = newcoord.z + offset.z;
+		ret[i] = ivec3(newcoord.x, newcoord.y, newcoord.z);
+		i++;
+	}
+	return ret;
+}
+ivec3 getOne(ivec3 coords, ivec3 offset){
+	ivec3 ret = ivec3(-1,-1,-1);
+	ivec3 centre = coords + offset;
+	ivec3 newcoord;
+	newcoord = centre;
+	ret = ivec3((newcoord.x + offset.x),(newcoord.y+offset.y),(newcoord.z+offset.z));
+	return ret;
+}
+int checkBorder(ivec3 toCheck){
+	return abs(toCheck.x)+ abs(toCheck.y) +abs(toCheck.z);
+}
+void main(){
+
+	uint TrueWorkGroupID_X = gl_WorkGroupID.x + u_WorkGroupOffset;
+
+	ivec3 storeadj [8][26];
+	ivec3 adjcnt[26];
+	for(int uu = 0; uu < 26; uu++){
+		for(int yy = 0; yy < 8; yy++){
+			storeadj[yy][uu] = ivec3(-1,-1,-1);
+		}
+		adjcnt[uu] = ivec3(-1,-1,-1);
+	}
+	ivec3 coord = granular[int(TrueWorkGroupID_X)].xyz;
+	ivec3 boundaries[] = get_borders(coord);
+	int lowt = checkBorder(boundaries[0]);
+	int hight = checkBorder(boundaries[1]);
+	int ee = 0;
+	
+	if(lowt == 3){
+		ivec3 hadjacent[7] = getThree(coord,boundaries[0]);
+		ee = 0;
+		for(int i = 0; i < 7; i++){
+			storeadj[i] = adjacent(coord,hadjacent[i]);
+			int e= 0;
+			while(storeadj[i][e].x != -1 && e < 26){
+				adjcnt[ee] = storeadj[i][e];
+				ee++;
+				e++;
+			}
+		}
+	}
+	if(lowt == 2){
+		ivec3 hadjacent[3] = getTwo(coord,boundaries[0]);
+		ee = 0;
+		for(int i = 0; i < 3; i++){
+			storeadj[i] = adjacent(coord,hadjacent[i]);
+			int e= 0;
+			while(storeadj[i][e].x != -1 && e < 26){
+				adjcnt[e] = storeadj[i][e];
+				ee++;
+				e++;
+			}
+		}
+	}
+	if(lowt == 1){
+		ivec3 hadjacent = getOne(coord,boundaries[0]);
+		ee = 0;
+		storeadj[0] = adjacent(coord,hadjacent);
+		int e= 0;
+		while(storeadj[0][e].x != -1){
+			adjcnt[ee] = storeadj[0][e];
+			ee++;
+			e++;
+		}
+	}		
+	storeadj[7] = adjacent(coord,coord);
+	if(storeadj[0][0].z > 600){
+			//intd[10] = ivec4(midpos,highpos,100);
+			intd[11] = ivec4(storeadj[0][0].xyz,10);
+	}
+	int e= 0;
+	while(storeadj[7][e].x != -1){
+		adjcnt[ee] = storeadj[7][e];
+		ee++;
+		e++;
+	}
+	for(int i = 0; i < ee; i++){
+		if(adjacent2(adjcnt,adjcnt[i],getAdjType(adjcnt[i],coord))){
+			adjcnt[i].x = -1;
+		}
+	}
+	int iter = 1;
+	int latticenum = atomicAdd(latticeInc,1);
+	//if(granular[TrueWorkGroupID_X].z >= 700 &&  granular[int(TrueWorkGroupID_X)].x > 0){
+	//}
+	if(granular[int(TrueWorkGroupID_X)].z > 830 && granular[int(TrueWorkGroupID_X)].x > 200){
+		intd[12] = granular[int(TrueWorkGroupID_X)];
+	}
+	set_lattice(latticenum,0,ivec4(granular[int(TrueWorkGroupID_X)].xyz,100));
+
+	for(int i = 0; i < 26;i++){
+		//if(adjcnt[i].x != -1){
+			set_lattice(latticenum,iter,ivec4(adjcnt[i],10));
+			iter++;
+		//}
+	}
+	/*
+		int tracloc = atomicAdd(tracker[7],3);
+		if(finalLattice[1000*1000*20].z > 0){
+			intd[10] = finalLattice[latti];
+			atomicMax(intd[10].w,int(TrueWorkGroupID_X));
+			intd[11].x = latticenum/27;
+		}*/
+//intd[20].xyz = ivec3(latticenum,1000,1000);
+}

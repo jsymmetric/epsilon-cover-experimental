@@ -1,0 +1,199 @@
+
+#version 460 core
+
+layout(local_size_x = 1,local_size_y = 1,local_size_z = 1) in;
+
+layout(std430,binding = 0) buffer rotdata{
+	vec3 scale;
+	vec4 rot[10*1000];
+};
+layout(std430,binding = 1) buffer facedata{
+	vec3 Faces[10*1000*3];
+};
+layout(std430,binding = 2) buffer trilist{
+	int tripos1[1000*5000];
+};
+layout(std430,binding = 3) buffer trilist2{
+	int tripos2[1000*5000];
+};
+layout(std430,binding = 4) buffer trilist3{
+	int tripos3[1000*5000];
+};
+layout(std430,binding = 5) buffer cubelist{
+	ivec3 cubepos1[1000];
+};
+layout(std430,binding = 6) buffer cubelist2{
+	ivec3 cubepos2[1000];
+};
+layout(std430,binding = 7) buffer cubelist3{
+	ivec3 cubepos3[1000];
+};
+layout(std430, binding = 8) buffer tracking{
+	int tracker[10];
+};
+layout(std430, binding = 9) buffer finalCubes{
+	ivec3 highpos;
+	ivec3 midpos;
+	int granularEnd;
+	int toplevel[1000*1000*5];
+	int granular[1000*10000];
+};
+layout(std430, binding = 10) buffer pixels{
+	ivec2 pixelWidth;
+	vec4 pixelBuffer[1920*1080];
+};
+layout(std430, binding =11) buffer floatDebug{
+    vec4 floatd[1000*1000];
+};
+layout(std430, binding = 12) buffer transform{
+	mat3 projection;
+};
+layout(std430, binding =13) buffer intDebug{
+    ivec4 intd[1000*1000];
+};
+layout(std430, binding = 14) buffer lattice{
+	int latticeInc;
+	ivec4 finalLattice[200*1000*27];
+};
+layout(std430, binding = 15) buffer lattice2{
+	ivec4 finalLattice2[200*1000*27];
+};
+layout(std430, binding = 16) buffer lattice3{
+	ivec4 finalLattice3[200*1000*27];
+};
+layout(std430, binding = 17) buffer lattice4{
+	ivec4 finalLattice4[200*1000*27];
+};
+layout(std430, binding = 18) buffer lattice5{
+	ivec4 finalLattice5[200*1000*27];
+};
+uniform layout(size4x32,binding = 0) coherent iimage2D uSampler;
+vec3 corner[8];
+int adj[12][6];
+int triiter = 0;
+ivec4 get_lattice(int pos, int adj){
+	int t = pos;
+	if(t  < 200*1000){
+		return finalLattice[pos*27 + adj];
+	}
+	if(t >= 200*1000 && t  < 400*1000){
+		return finalLattice2[pos*27 + adj-200*1000*27];
+	}
+	if(t >= 400*1000 && t  < 600*1000){
+		return finalLattice3[pos*27 + adj-400*1000*27];
+	}
+	if(t >= 600*1000 && t  < 800*1000){
+		return finalLattice4[pos*27 + adj-600*1000*27];
+	}
+	if(t >= 800*1000 && t  < 1000*1000){
+		return finalLattice5[pos*27 + adj-800*1000*27];
+	}
+	return ivec4(-1,-1,-1,-1);
+}
+void set_lattice(int pos, int adj, ivec4 add){
+	int t = pos;
+	if(t  < 200*1000){
+		finalLattice[pos*27 + adj] = add;
+	}
+	if(t >= 200*1000 && t  < 400*1000){
+		finalLattice2[pos*27 + adj - 200*1000*27] = add;
+	}
+	if(t >= 400*1000 && t  < 600*1000){
+		finalLattice3[pos*27 + adj - 400*1000*27] = add;
+	}
+	if(t >= 600*1000 && t  < 800*1000){
+		finalLattice4[pos*27 + adj -600*1000*27] = add;
+	}
+	if(t >= 800*1000 && t  < 1000*1000){
+		finalLattice5[pos*27 + adj-800*1000*27] = add;
+	}
+}
+ivec3 getVecCoord(int place){
+	int y = 0;
+	int x = 0;
+	int z = place%1000;
+	if(place-z > 0){
+		y = ((place-z)/(1000*highpos.z))%1000;
+		if(place - y - z > 0){
+			x = (place-y-z)/(1000*1000*highpos.y*highpos.z);
+		}
+	}
+	if(x >=0){
+	intd[gl_WorkGroupID.x].w = place;
+	}
+	return ivec3(x,y,z);
+}
+ivec3 getVectorCoord(ivec3 coord){
+	ivec3 ret = ivec3(0,0,0);
+	ret.x = coord.x - coord.x%10;
+	ret.y = coord.y - coord.y%10;
+	ret.z = coord.z - coord.z%10;
+	return ret;
+}
+bool inBox(vec3 coord){
+	float upper = 1080.0/1920.0;
+	//if(finalLattice[gl_WorkGroupID.x*27].y > 800){
+
+	//}
+	if(coord.y >= 0 && coord.y < upper){
+
+		if(coord.x >= 0 && coord.x < 1){
+			return true;
+		}
+	}
+	return false;	
+}
+void main(){
+	vec3 coord = vec3(get_lattice(int(gl_WorkGroupID.x),0).xyz);
+	float aspect = 1080.0/1920.0; 
+	float a1 = 45*3.142/180.0;
+	float a2 = aspect/tan(a1);
+	float adjust = 1/tan(a2);
+	//vec3 coord = vec3(getVecCoord(cube));
+	coord.x = coord.x/(highpos.x*20*10);
+	coord.y = coord.y/(highpos.y*20*10);
+	coord.z = coord.z/(highpos.z*20*10);
+	coord = coord + vec3(0.333,0.333,0);
+	coord.z = adjust;
+	//coord = coord+transform;
+	//coord = coord*rotate;
+	vec3 Ecoord = coord+vec3(1,1,0)/(highpos.x*20*10);
+	Ecoord.x = Ecoord.x/(tan(a1)*coord.z);
+	Ecoord.y = Ecoord.y/(tan(a2)*coord.z);
+	coord.x = coord.x/(tan(a1)*coord.z);
+	coord.y = coord.y/(tan(a2)*coord.z);
+	ivec2 pixloc;
+	ivec2 Epixloc;
+
+	if(inBox(coord)==true){
+		//if(gl_WorkGroupID.x <5000){
+
+	//}
+		pixloc.x = int(1920*coord.x);
+		pixloc.y = int(1080*coord.y);
+		Epixloc.x = int(1920*Ecoord.x);
+		Epixloc.y = int(1080*Ecoord.y);
+		int xd = 2*(Epixloc.x - pixloc.x);
+		int yd =2*(Epixloc.y-pixloc.y);
+		//if(finalLattice[gl_WorkGroupID.x*27].z > 500){
+		
+		if(gl_WorkGroupID.x < 100000){
+
+		//intd[tracloc].w = int(gl_WorkGroupID.x);
+		}
+		int x = pixloc.x;
+		int y = pixloc.y;
+		//for(int x = Epixloc.x; x < Epixloc.x+xd; x++){
+							int tracloc = atomicAdd(tracker[7],3);
+					intd[tracloc].xy = pixloc;
+			//for(int y = Epixloc.y; y < Epixloc.y + yd+10; y++){
+			if(x < 1920 && y < 1080 && x >0 && y>0){
+				if(imageLoad(uSampler,ivec2(x,y)).w  == -1 || imageLoad(uSampler,ivec2(x,y)).w > coord.z){
+
+					imageStore(uSampler,ivec2(x,y),ivec4(0,250,0,0));
+				}
+			}
+			//}
+		//}
+	}
+}

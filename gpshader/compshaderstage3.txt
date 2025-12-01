@@ -1,0 +1,681 @@
+
+#version 460 core
+layout(local_size_x = 10,local_size_y = 10,local_size_z = 10) in;
+
+layout(std430,binding = 0) buffer rotdata{
+	vec3 scale;
+	vec4 rot[10*1000];
+};
+layout(std430,binding = 1) buffer facedata{
+	vec3 Faces[10*1000*3];
+};
+layout(std430,binding = 2) buffer trilist{
+	int tripos1[1000*5000];
+};
+layout(std430,binding = 3) buffer trilist2{
+	int tripos2[1000*5000];
+};
+layout(std430,binding = 4) buffer trilist3{
+	int tripos3[1000*5000];
+};
+layout(std430,binding = 5) buffer cubelist{
+	ivec3 cubepos1[1000];
+};
+layout(std430,binding = 6) buffer cubelist2{
+	ivec3 cubepos2[1000];
+};
+layout(std430,binding = 7) buffer cubelist3{
+	ivec3 cubepos3[1000];
+};
+layout(std430, binding = 8) buffer tracking{
+	int tracker[10];
+};
+layout(std430, binding = 9) buffer finalCubes{
+	ivec3 highpos;
+	ivec3 midpos;
+	int granularEnd;
+	int toplevel[1000*1000*5];
+	int granular[1000*10000];
+};
+layout(std430, binding = 10) buffer pixels{
+	ivec2 pixelWidth;
+	vec4 pixelBuffer[1960*1080];
+};
+layout(std430, binding =11) buffer floatDebug{
+    vec4 floatd[1000*1000];
+};
+layout(std430, binding = 12) buffer transform{
+	mat3 projection;
+};
+layout(std430, binding =13) buffer intDebug{
+    ivec4 intd[1000*1000];
+};
+layout(std430, binding = 14) buffer lattice{
+	int latticeInc;
+	ivec4 finalLattice[200*1000*27];
+};
+layout(std430, binding = 15) buffer lattice2{
+	ivec4 finalLattice2[200*1000*27];
+};
+layout(std430, binding = 16) buffer lattice3{
+	ivec4 finalLattice3[200*1000*27];
+};
+layout(std430, binding = 17) buffer lattice4{
+	ivec4 finalLattice4[200*1000*27];
+};
+layout(std430, binding = 18) buffer lattice5{
+	ivec4 finalLattice5[200*1000*27];
+};
+vec3 corner[8];
+int adj[12][6];
+int triiter = 0;
+
+int get_line(int x, int y,int count,vec4 intersection[10]){
+	int ret = -1;
+	int counter = 0;
+	for(int i = 0; i < count; i++){
+		for(int e = 0; e <6; e++){
+			if(intersection[i].w == adj[x][e] && intersection[i].w != y){
+				ret = i;
+				counter++;
+			}
+			if(counter ==1){
+				i = 13;
+			}
+		}
+	}
+	return ret;
+}
+
+int get_trilist1(int x, int y, int z, int w){
+	return tripos1[x*highpos.z*highpos.y*5000 + y*highpos.z*5000 + z*5000 + w];
+};
+int get_trilist2(int x, int y, int z, int w){
+	return tripos2[x*100*5000 + y*10*5000 + z*5000 + w];
+};
+int get_trilist3(int x, int y, int z, int w){
+	return tripos3[x*100*5000 + y*10*5000 + z*5000 + w];
+};
+void set_trilist1(int x, int y, int z, int add){
+	if(triiter < 5000){
+		tripos1[x*highpos.z*highpos.y*5000 + y*highpos.z*5000 + z*5000 + triiter] = add;
+		triiter++;
+	}
+};
+void set_trilist2(int x, int y, int z, int add){
+	tripos2[x*10*10*5000 + y*10*5000+ z*5000 + triiter] = add;
+	triiter++;
+};
+void set_trilist3(int x, int y, int z, int add){
+	tripos3[x*100*5000 + y*10*5000 + z*5000 + triiter] = add;
+	triiter++;
+};
+void set_cubelist3(int x,int y, int z){
+	int pos = atomicAdd(tracker[2],1);
+	cubepos3[pos] = ivec3(x,y,z);
+};
+void set_cubelist2(int x,int y, int z){
+	//if(x != 0 || y != 0 || z != 0){
+		int pos = atomicAdd(tracker[1],1);
+		//int tracloc = atomicAdd(tracker[7],1);
+		memoryBarrierBuffer();
+		//floatd[tracloc].w = pos;
+		//floatd[tracloc].z = 10;
+
+	    cubepos2[pos].xyz = ivec3(x,y,z);
+	//}
+};
+void set_cubelist1(int x,int y, int z){
+	int pos = atomicAdd(tracker[0],1);
+	cubepos1[pos] = ivec3(x,y,z);
+};
+ivec3 get_cubelist3(int x){
+	return cubepos3[x];
+};
+ivec3 get_cubelist2(int x){
+	return cubepos2[x];
+};
+ivec3 get_cubelist1(int x){
+	return cubepos1[x];
+};
+bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 triangle[3]){
+	float triint = 0;
+	float squareint = 0;
+	vec4 triline;
+	bool chck = false;
+	if(tpos == 0){
+		triline = vec4(triangle[1].x,triangle[1].y,triangle[2].x,triangle[2].y); 
+	}
+	if(tpos == 1){
+		triline = vec4(triangle[0].x,triangle[0].y,triangle[2].x,triangle[2].y);
+	}
+	if(tpos == 2){
+		triline = vec4(triangle[0].x,triangle[0].y,triangle[1].x,triangle[1].y);
+	}
+	//eq2 x1.z - x2.z = t2*(x2.w - x2.z) - t1*(x1.w- x1.z) 
+	//eq1 x1.x - triline.x = t2*(triline.y-triline.x) - t1*(x1.y-x1.x)
+	float a1 = -centreline.x + triline.x;
+	float a2 = -centreline.y + triline.y;
+	float b1 = (triline.z - triline.x);
+	float b2 = (triline.w - triline.y);
+	float c1 = (centreline.z - centreline.x);
+	float c2 = (centreline.w - centreline.y);
+	float disc = c1*b2 - b1*c2;
+	ivec3 posi = ivec3(gl_LocalInvocationID.xyz);
+	ivec3 GlobalPos = get_cubelist1(tracker[3]);
+	ivec3 place = GlobalPos*10 + posi;
+	float t2 = (a1*b2 - a2*b1)/disc;
+	/*
+	if(place.z == 83  && place.x == 70){
+		int tracloc = atomicAdd(tracker[7],3);
+		floatd[tracloc].xy = place.xy;
+		floatd[tracloc].z = t2;//vec3( granular[gl_WorkGroupID.x].xyz);
+		floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
+		floatd[tracloc + 1].xyzw = centreline;
+	}
+	*/
+	if(disc != 0){
+		if(t2 < 0){
+			float t1 = (a1*c2 - a2*c1)/disc;
+			if(t1 <= 1 && t1 >= 0){
+
+				chck = true;
+			}
+		}
+	}
+	if(chck == false){
+		for(int i = 0; i < len; i++){
+			vec4 cubeline = boundaries[i];
+			float a1 = centreline.x - cubeline.x;
+			float a2 = centreline.y - cubeline.y;
+			float b1 = (cubeline.z - cubeline.x);
+			float b2 = (cubeline.w - cubeline.y);
+			float c1 = (centreline.z - centreline.x);
+			float c2 = (centreline.w - centreline.y);
+			float disc = c1*b2 - b1*c2;
+			if(disc != 0){
+				float t2 = (a1*b2 - a2*b1)/disc;
+				if(t2 < 0){
+					float t1 = (a1*c2 - a2*c1)/disc;
+					if(t1 <= 1 && t1 >= 0){
+						//demonstrates triangles corner is inside square
+						chck = true;
+						return true;
+					}
+				}
+			}
+			if(chck == true){
+				i += 1000;
+			}
+		}
+	}
+	return chck;
+};
+vec3 get_intersect(vec3 x1,vec3 x2){
+	//returns points of cube vertices that intercept plane
+	float t = -x1.z/(x2.z-x1.z);
+	if(x2.z == x1.z){
+		t=0;
+	}
+	float x = x1.x + t*(x2.x-x1.x);
+	float y = x1.y + t*(x2.y-x1.y);
+	float z = x1.z + t*(x2.z-x1.z);
+	return vec3(x,y,z);
+};
+float get_sep(vec3 x,vec3 y){
+	vec3 vector = x-y;
+	return dot(vector,vector);
+}
+float get_longestline(vec3 x1,vec3[3] triangle){
+	float max = 0;
+	for(int i = 0; i < 3;i++){
+		float sep = get_sep(x1,triangle[i].xyz);
+		if(sep > max){
+			max = sep;
+		}
+	}
+	return max;
+}
+vec4 get_mostdistant(vec3 x1, vec3[3] y1){
+	float least = get_sep(x1,y1[0]);
+	vec4 ret = vec4(y1[0].xyz,0);
+	if(least > get_sep(x1,y1[1])){
+		least = get_sep(x1,y1[1]);
+		ret = vec4(y1[1].xyz,1);
+	}
+	if(least > get_sep(x1,y1[2])){
+		ret = vec4(y1[2].xyz,2);
+	}
+	return ret;
+}
+bool check_intercept(vec4 x1,vec4 x2){
+	//checks if two 2d lines on a plane intercept in the boundary between there ends, inputn takes form vec4(x1,y1,x2,y2) ie the two end points in one four vec.
+	bool check = false;
+
+	float a1 = x2.x - x1.x;
+	float a2 = x2.y - x1.y;
+	float b1 = (x2.z - x2.x);
+	float b2 = (x2.w - x2.y);
+	float c1 = (x1.z - x1.x);
+	float c2 = (x1.w - x1.y);
+	float disc = c1*b2 - b1*c2;
+	if(disc != 0){
+		float t2 = (a1*b2 - a2*b1)/disc;
+		if(t2 >= 0 && t2 <= 1){
+			float t1 = (a1*c2 - a2*c1)/disc;
+			if(t1 <= 1 && t1 >= 0){
+				check = true;
+			}
+		}
+	}else{
+		if(c1 > 0){
+			float t1  = a1/c1;
+			if(x1.y+ t1*c2 == x2.y){
+				check = true;
+			}
+		}else{
+			float t1  = a1/c2;
+			if(x1.y == x2.y){
+				check = true;
+			}
+		}
+	}
+	return check;
+};
+void main(){
+int test3 = 0;
+int tricheck = 0;
+int trinum = 0;
+ivec3 posi = ivec3(gl_LocalInvocationID.xyz);
+ivec3 GlobalPos = get_cubelist1(tracker[3]);
+vec3 pos = (GlobalPos+posi*0.1)*scale;
+
+do{
+	int activetri = get_trilist1(GlobalPos.x,GlobalPos.y,GlobalPos.z,trinum);
+	vec3 triangle[3] =vec3[] (Faces[activetri*3],Faces[activetri*3+1],Faces[activetri*3+2]);
+	vec3 a = rot[activetri].xyz;
+	float theta = rot[activetri].w;
+	mat3 id = mat3(1.0);
+	mat3 om = mat3(
+		0,-a.z,a.y,
+		a.z,0,-a.x,
+		-a.y,a.x,0
+	);
+	//
+	vec3 plane = vec3(0,0,triangle[1].z);
+	mat3 om2 = om*om;
+	mat3 rotation = id + sin(theta)*om + (1-cos(theta))*om2;
+	int test1 = 0;
+	int test2 = 0;
+	int cross[8] = int[](-1,-1,-1,-1 ,-1,-1,-1,-1);
+	float offset = 0.5*scale.x*0.1;
+	vec3 xo = vec3(offset,0,0);
+	vec3 yo = vec3(0,offset,0);
+	vec3 zo = vec3(0,0,offset);
+	vec3 rxo = rotation*xo;
+	vec3 ryo = rotation*yo;
+	vec3 rzo = rotation*zo;
+	vec3 rotpos = rotation*(pos + vec3(1,1,1));
+	vec3 cent = rotation*vec3(pos+xo+yo+zo);
+	vec3 tfl = cent + rxo + ryo + rzo;
+	vec3 tfr = cent + rxo + ryo - rzo;
+	vec3 tbl = cent - rxo + ryo + rzo;
+	vec3 tbr = cent - rxo + ryo - rzo;
+	vec3 bfl = cent + rxo - ryo + rzo;
+	vec3 bfr = cent + rxo - ryo - rzo;
+	vec3 bbl = cent - rxo - ryo + rzo;
+	vec3 bbr = cent - rxo - ryo - rzo;
+	vec4 mostdist4 = get_mostdistant(cent,triangle);
+	vec3 mostdist = mostdist4.xyz;
+	int mostdistpos = int(mostdist4.w);
+	float absmdist = get_sep(mostdist,cent);
+	float max = get_longestline(mostdist,triangle);
+
+	//vert 0
+	//int tfltbl[] = [1,2,3,4,7,8]
+	adj[0] = int[6](1,2,3,4,7,8);
+	//vert 1
+	//int tbltbr[] = [0,2,3,7,6,9];
+	adj[1] = int[6](0,2,3,7,6,9);
+	//vert2 
+	//int tbrtfr[] = [0,1,3,6,5,10];
+	adj[2] = int[6](0,1,3,6,5,10);
+	// vert 3
+	//int tfrtfl[] = [0,1,2,4,11,5];
+	adj[3] = int[6](0,1,2,4,11,5);
+	//vert 4 
+	//int tflbfl[] = [0,3,8,11,5,7];
+	adj[4] = int[6](0,3,8,11,5,7);
+	//vert 5
+	//int tfrbfr[] = [2,3,11,10,4,6];
+	adj[5] = int[6](2,3,11,10,4,6);
+	//vert 6
+	//int tbrbbr[] = [1,2,7,5,10,9];
+	adj[6] = int[6](1,2,7,5,10,9);
+	//vert 7
+	//int tblbbl[] = [0,1,8,9,4,6];
+	adj[7] = int[6](0,1,8,9,4,6);
+	// vert 8
+	//int bflbbl[] = [0,10,9,11,7,4];
+	adj[8] = int[6](0,10,9,11,7,4);
+	// vert 9
+	//int bblbbr[] = [1,7,6,8,10,11];
+	adj[9] = int[6](1,7,6,8,10,11);
+	//vert 10
+	//int bbrbfr[] = [8,9,11,6,5,2];
+	adj[10] = int[6](8,9,11,6,5,2);
+	//vert11
+	//int bfrbfl[] = [8,9,10,4,3,5];
+	adj[11] = int[6](8,9,10,4,3,5);
+	//check if cube intersects plane of triangle
+	corner[0] = tfl;		
+	corner[1] = tfr;
+	corner[2] = tbl;
+	corner[3] = tbr;
+	corner[4] = bfl;
+	corner[5] = bfr;
+	corner[6] = bbl;
+	corner[7] = bbr;
+
+	if((cent.z-triangle[0].z)*(tfl.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[0] = 0;
+
+	}
+	if((cent.z-triangle[0].z)*(tfr.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[1] = 0;
+
+	}
+	if((cent.z-triangle[0].z)*(tbl.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[2] = 0;
+	}
+	if((cent.z-triangle[0].z)*(tbr.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[3] = 0;
+	}
+	if((cent.z-triangle[0].z)*(bfl.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[4] = 0;
+	}
+	if((cent.z-triangle[0].z)*(bfr.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[5] = 0;
+	}
+	if((cent.z-triangle[0].z)*(bbl.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[6] = 0;
+	}
+	if((cent.z-triangle[0].z)*(bbr.z- triangle[0].z) <= 0){
+		test1 = 1;
+		cross[7] = 0;
+	}
+
+	if(test1 == 1){
+
+		vec4 intersection[10];
+			int count = 0;
+			if(cross[0] == 0){
+				if(cross[1] == -1){
+					vec3 point = get_intersect(corner[0]-plane,corner[1]-plane);
+					intersection[count] = vec4(point,3);
+					count = count + 1;
+				}
+				if(cross[2] == -1){
+					vec3 point = get_intersect(corner[0]-plane,corner[2]-plane);
+					intersection[count] = vec4(point,0);
+					count = count + 1;
+				}
+				if(cross[4] == -1){
+					vec3 point = get_intersect(corner[0]-plane,corner[4]-plane);
+					intersection[count] = vec4(point,4);
+					count = count + 1;
+				}
+			}
+
+
+			if(cross[1] == 0){
+				if(cross[0] == -1){
+					vec3 point = get_intersect(corner[1]=plane,corner[0]-plane);
+					intersection[count] = vec4(point,3);
+					count = count + 1;
+				}
+				if(cross[5] == -1){
+					vec3 point = get_intersect(corner[1]-plane,corner[5]-plane);
+					intersection[count] = vec4(point,5);
+					count = count + 1;
+				}
+				if(cross[3] == -1){
+					vec3 point = get_intersect(corner[1]-plane,corner[3]-plane);
+					intersection[count] = vec4(point,2);
+					count = count + 1;
+				}
+			}
+		
+			if(cross[2] == 0){
+				if(cross[0] == -1){
+					vec3 point = get_intersect(corner[2]-plane,corner[0]-plane);
+					intersection[count] = vec4(point,0);
+					count = count + 1;
+				}
+				if(cross[3] == -1){
+					vec3 point = get_intersect(corner[2]-plane,corner[3]-plane);
+					intersection[count] = vec4(point,1);
+					count = count + 1;
+				}
+				if(cross[6] == -1){
+					vec3 point = get_intersect(corner[2]-plane,corner[6]-plane);
+					intersection[count] = vec4(point,7);
+					count = count + 1;
+
+				}
+			}
+
+			if(cross[3] == 0){
+				if(cross[2] == -1){
+					vec3 point = get_intersect(corner[3]-plane,corner[2]-plane);
+					intersection[count] = vec4(point,1);
+					count = count + 1;
+				}
+				if(cross[1] == -1){
+					vec3 point = get_intersect(corner[3]-plane,corner[1]-plane);
+					intersection[count] = vec4(point,2);
+					count = count + 1;
+				}
+				if(cross[7] == -1){
+					vec3 point = get_intersect(corner[3]-plane,corner[7]-plane);
+					intersection[count] = vec4(point,6);
+					count = count + 1;
+				}
+			}
+
+			if(cross[4] == 0){
+				if(cross[5] == -1){
+					vec3 point = get_intersect(corner[4]-plane,corner[5]-plane);
+					intersection[count] = vec4(point,11);
+					count = count + 1;
+				}
+				if(cross[0] == -1){
+					vec3 point = get_intersect(corner[4]-plane,corner[0]-plane);
+					intersection[count] = vec4(point,4);
+					count = count + 1;
+				}
+				if(cross[6] == -1){
+					vec3 point = get_intersect(corner[4]-plane,corner[6]-plane);
+					intersection[count] = vec4(point,8);
+					count = count + 1;
+				}
+			}
+
+			if(cross[5] == 0){
+				if(cross[1] == -1){
+					vec3 point = get_intersect(corner[5]-plane,corner[1]-plane);
+					intersection[count] = vec4(point,5);
+					count = count + 1;
+				}
+				if(cross[7] == -1){
+					vec3 point = get_intersect(corner[5]-plane,corner[7]-plane);
+					intersection[count] = vec4(point,10);
+					count = count + 1;
+				}
+				if(cross[4] == -1){
+					vec3 point = get_intersect(corner[5]-plane,corner[4]-plane);
+					intersection[count] = vec4(point,11);
+					count = count + 1;
+				}
+			}
+
+			if(cross[6] == 0){
+				if(cross[2] == -1){
+					vec3 point = get_intersect(corner[6]-plane,corner[2]-plane);
+					intersection[count] = vec4(point,7);
+					count = count + 1;
+				}
+				if(cross[7] == -1){
+					vec3 point = get_intersect(corner[6]-plane,corner[7]-plane);
+					intersection[count] = vec4(point,9);
+					count = count + 1;
+				}
+				if(cross[4] == -1){
+					vec3 point = get_intersect(corner[6]-plane,corner[4]-plane);
+					intersection[count] = vec4(point,8);
+					count = count + 1;
+				}
+			}
+
+			if(cross[7] == 0){
+				if(cross[6] == -1){
+					vec3 point = get_intersect(corner[7]-plane,corner[6]-plane);
+					intersection[count] = vec4(point,9);
+					count = count + 1;
+				}
+				if(cross[3] == -1){
+					vec3 point = get_intersect(corner[7]-plane,corner[3]-plane);
+					intersection[count] = vec4(point,6);
+					count = count + 1;
+				}
+				if(cross[5] == -1){
+					vec3 point = get_intersect(corner[7]-plane,corner[5]-plane);
+					intersection[count] = vec4(point,10);
+					count = count + 1;
+				}
+			}
+			//find the point closest to the most distant vertex of the triangle this allows us to identifiy the side facing the triangle which reduces the number of lines that need to be checked for intersection for example if the footprint is a triangle only the sides centred
+			//on this point need be checked as the third is occluded.Note is also essential to check if this point is inside the triangle cover for if the foot print is fully enclosed in the triangle.
+			// #
+			float top = 1000000;
+			int topp = -1;
+			vec3 p;
+			int toploc = -1;
+			for(int i = 0; i < count; i++){
+
+				float dist = get_sep(mostdist,intersection[i].xyz);
+				if( dist < top){
+					top = dist;
+					topp = int(intersection[i].w);
+					p = intersection[i].xyz;
+					toploc = i;
+				}
+			}
+			// check to see if one primitive is inside the other this is done by projecting the line formed by the most distant vertex of the triangle and the vertex of the cube footprint that is closest to it. The line is projected in both directions
+			//and if it encounters two walls of the triangle one on either side of its origin then it shows the square is inside the triangle as the shapes are convex, the line will be checked for intersection with the oppsite side of the triangle and all sides of the square 
+			// this will enable determination of if either vertex is in the other shape, which is all thats required to rule out if either is fully inside the other.
+			int number = -1;
+			vec4 boundaries[10];
+			int counter = 0;
+			for(int i = 0; i < count; i++){
+				for(int e = 0; e <6; e++){
+					if(intersection[i].w == adj[topp][e]){
+						number = int(intersection[i].w);
+
+						counter++;
+					}
+					if(counter ==1){
+						i = 13;
+					}
+				}
+			}
+
+			int nos0 = topp;
+			int nos1 = number;
+			int pos0 = toploc;
+			int pos1 = 0;
+			for(int i = 0; i < count; i++){
+				pos1 = get_line(nos1,nos0, count,intersection);
+				boundaries[i] = vec4(intersection[pos1].x,intersection[pos1].y,intersection[pos0].x,intersection[pos0].y);
+				nos0 = nos1;
+				nos1 = int(intersection[pos1].w);
+				pos0 = pos1;
+			}
+			vec4 centreline = vec4(p.x,p.y,triangle[mostdistpos].x,triangle[mostdistpos].y);
+			if(check_engulf(mostdistpos, count, boundaries,centreline, triangle) == true){
+				test2 = 1;
+			}
+
+			/////////////////////////////////////////////////////
+			// noow it precedes to check line intersection if the above checks failed
+			counter = 0;
+			if(count < 5 && test2 == 0){
+				//check front faceing line equations for trapeziods and triangles. 
+				vec3 np[3];
+				np[2] = p;
+				for(int i = 0; i < count; i++){
+					for(int e = 0; e <6; e++){
+						if(intersection[i].w == adj[topp][e]){
+							np[counter] = intersection[i].xyz;
+							counter++;
+						}
+						if(counter ==2){
+							i = 13;
+						}
+					}
+				}
+				for(int i = 0; i < 3; i ++){
+					if(i < 2){
+					vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
+						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true){
+							test2 = 1;
+							i = 4;
+						}
+					}
+					else{
+						vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[0].x,triangle[0].y);
+						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true){
+							test2 = 1;
+							i = 4;
+						}
+					}
+				}
+			}
+			if(count >= 5 && test2 == 0){
+				for(int i = 0; i < count; i ++){
+					vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
+					if(check_intercept(boundaries[i],vertice) == true){
+						test2 = 1;
+						i = count + 2;
+					}
+				}
+			}
+		}
+	if(test2 ==1){
+		set_trilist2(posi.x,posi.y,posi.z,trinum);
+		test3 = 1;
+	}
+	trinum++;
+	tricheck = get_trilist1(GlobalPos.x,GlobalPos.y,GlobalPos.z,trinum);
+	
+
+
+}while(tricheck > 0 && trinum < 5000);
+
+//}}}
+if(test3 == 1){
+if(GlobalPos.z == 8 && GlobalPos.x > 0 && posi.z != 3){
+	int tracloc = atomicAdd(tracker[7],2);
+	floatd[tracloc].xyz = vec3(posi);
+}	
+	set_cubelist2(posi.x,posi.y,posi.z);
+
+}
+}
