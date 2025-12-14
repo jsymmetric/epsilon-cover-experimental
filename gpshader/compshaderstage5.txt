@@ -226,9 +226,9 @@ ivec3[26] adjacent(ivec3 coord, ivec3 coord2){
 	int meta[] = getTopLevel(coord2);
 	int rangeStart = meta[0];
 	int rangeEnd = meta[1];
-	if(rangeStart > 0 && coord.z >= 800 && coord.x > 10){
-		intd[10] = ivec4(rangeStart,rangeEnd,10,100);
-	}
+	//if(rangeStart > 0 && coord.z >= 800 && coord.x > 10){
+		//intd[10] = ivec4(rangeStart,rangeEnd,10,100);
+	//}
 	int p = 0;
 	for(int i = rangeStart; i <= rangeEnd; i++){ 
 		ivec3 Ccoord = granular[i].xyz;
@@ -418,7 +418,7 @@ void main(){
 	storeadj[7] = adjacent(coord,coord);
 	if(storeadj[0][0].z > 600){
 			//intd[10] = ivec4(midpos,highpos,100);
-			intd[11] = ivec4(storeadj[0][0].xyz,10);
+			//intd[11] = ivec4(storeadj[0][0].xyz,10);
 	}
 	int e= 0;
 	while(storeadj[7][e].x != -1){
@@ -435,11 +435,12 @@ void main(){
 	int latticenum = atomicAdd(latticeInc,1);
 	//if(granular[TrueWorkGroupID_X].z >= 700 &&  granular[int(TrueWorkGroupID_X)].x > 0){
 	//}
-	if(granular[int(TrueWorkGroupID_X)].z > 830 && granular[int(TrueWorkGroupID_X)].x > 200){
-		intd[12] = granular[int(TrueWorkGroupID_X)];
-	}
-	set_lattice(latticenum,0,ivec4(granular[int(TrueWorkGroupID_X)].xyz,100));
 
+	set_lattice(latticenum,0,ivec4(granular[int(TrueWorkGroupID_X)].xyz,100));
+	if(granular[int(TrueWorkGroupID_X)].y > 500 && TrueWorkGroupID_X < 600000){
+		intd[12].x = int(TrueWorkGroupID_X);
+
+	}
 	for(int i = 0; i < 26;i++){
 		//if(adjcnt[i].x != -1){
 			set_lattice(latticenum,iter,ivec4(adjcnt[i],10));

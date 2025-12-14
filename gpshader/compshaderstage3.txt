@@ -632,16 +632,16 @@ do{
 					}
 				}
 				for(int i = 0; i < 3; i ++){
-					if(i < 2){
+				if(i < 2){
 					vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
-						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true){
+						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true || check_intercept(vec4(np[1].x,np[1].y,np[2].x,np[2].y),vertice) == true){
 							test2 = 1;
 							i = 4;
 						}
 					}
 					else{
 						vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[0].x,triangle[0].y);
-						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true){
+						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true || check_intercept(vec4(np[1].x,np[1].y,np[2].x,np[2].y),vertice) == true){
 							test2 = 1;
 							i = 4;
 						}
@@ -650,10 +650,23 @@ do{
 			}
 			if(count >= 5 && test2 == 0){
 				for(int i = 0; i < count; i ++){
-					vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
-					if(check_intercept(boundaries[i],vertice) == true){
-						test2 = 1;
-						i = count + 2;
+					for(int e = 0; e < 3;e++){
+						if(e < 2){
+							vec4 vertice = vec4(triangle[e].x,triangle[e].y,triangle[e+1].x,triangle[e+1].y);
+							if(check_intercept(boundaries[i],vertice) == true){
+								test2 = 1;
+								i = count + 2;
+								e = 3;
+							}
+						}
+						else{
+							vec4 vertice = vec4(triangle[0].x,triangle[0].y,triangle[e].x,triangle[e].y);
+							if(check_intercept(boundaries[i],vertice) == true){
+								test2 = 1;
+								i = count + 2;
+								e = 3;
+							}
+						}
 					}
 				}
 			}

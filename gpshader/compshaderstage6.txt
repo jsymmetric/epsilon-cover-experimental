@@ -118,9 +118,6 @@ ivec3 getVecCoord(int place){
 			x = (place-y-z)/(1000*1000*highpos.y*highpos.z);
 		}
 	}
-	if(x >=0){
-	intd[gl_WorkGroupID.x].w = place;
-	}
 	return ivec3(x,y,z);
 }
 ivec3 getVectorCoord(ivec3 coord){
@@ -148,31 +145,28 @@ void main(){
 	float aspect = 1080.0/1920.0; 
 	float a1 = 45*3.142/180.0;
 	float a2 = aspect/tan(a1);
-	float adjust = 1/tan(a2);
+	float adjust = 1/tan(a1);
 	//vec3 coord = vec3(getVecCoord(cube));
 	coord.x = coord.x/(highpos.x*20*10);
 	coord.y = coord.y/(highpos.y*20*10);
 	coord.z = coord.z/(highpos.z*20*10);
-	coord = coord + vec3(0.333,0.333,0);
-	coord.z = adjust;
+	coord = coord + vec3(0.25,0.25,0);
+	coord.z = coord.z + adjust;
 	//coord = coord+transform;
 	//coord = coord*rotate;
 	vec3 Ecoord = coord+vec3(1,1,0)/(highpos.x*20*10);
 	Ecoord.x = Ecoord.x/(tan(a1)*coord.z);
 	Ecoord.y = Ecoord.y/(tan(a2)*coord.z);
 	coord.x = coord.x/(tan(a1)*coord.z);
-	coord.y = coord.y/(tan(a2)*coord.z);
+	coord.y = coord.y/(tan(a1)*coord.z);
 	ivec2 pixloc;
 	ivec2 Epixloc;
 
 	if(inBox(coord)==true){
-		//if(gl_WorkGroupID.x <5000){
-
-	//}
 		pixloc.x = int(1920*coord.x);
-		pixloc.y = int(1080*coord.y);
+		pixloc.y = int(1920*coord.y);
 		Epixloc.x = int(1920*Ecoord.x);
-		Epixloc.y = int(1080*Ecoord.y);
+		Epixloc.y = int(19200*Ecoord.y);
 		int xd = 2*(Epixloc.x - pixloc.x);
 		int yd =2*(Epixloc.y-pixloc.y);
 		//if(finalLattice[gl_WorkGroupID.x*27].z > 500){
@@ -184,13 +178,16 @@ void main(){
 		int x = pixloc.x;
 		int y = pixloc.y;
 		//for(int x = Epixloc.x; x < Epixloc.x+xd; x++){
-							int tracloc = atomicAdd(tracker[7],3);
-					intd[tracloc].xy = pixloc;
+			if(int(gl_WorkGroupID.x) == intd[12].x){
+				int tracloc = atomicAdd(tracker[7],3);
+				intd[1].xy = get_lattice(intd[12].x,0).xy;
+				intd[1].z = 1000;
+			}
 			//for(int y = Epixloc.y; y < Epixloc.y + yd+10; y++){
 			if(x < 1920 && y < 1080 && x >0 && y>0){
-				if(imageLoad(uSampler,ivec2(x,y)).w  == -1 || imageLoad(uSampler,ivec2(x,y)).w > coord.z){
+				if(imageLoad(uSampler,ivec2(x,y)).w  == 0 || imageLoad(uSampler,ivec2(x,y)).w > coord.z){
 
-					imageStore(uSampler,ivec2(x,y),ivec4(0,250,0,0));
+					imageStore(uSampler,ivec2(x,y),ivec4(0,250,coord.z,coord.z));
 				}
 			}
 			//}

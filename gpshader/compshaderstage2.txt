@@ -147,7 +147,6 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 	float disc = c1*b2 - b1*c2;
 
 		float t2 = (a1*b2 - a2*b1)/disc;
-		/*
 		if(gl_WorkGroupID.z >= 1 && (10- gl_WorkGroupID.x) <= gl_WorkGroupID.y && gl_WorkGroupID.x > 0){
 			int tracloc = atomicAdd(tracker[7],3);
 			floatd[tracloc].xy = gpos.xy;
@@ -155,7 +154,6 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 			floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
 			floatd[tracloc + 1].xyz = gl_WorkGroupID;
 		}
-		*/
 		if(disc != 0){
 		if(t2 < 0){
 			float t1 = (a1*c2 - a2*c1)/disc;
@@ -567,7 +565,7 @@ for(int trinum; trinum < 2; trinum++){
 		//find the point closest to the most distant vertex of the triangle this allows us to identifiy the side facing the triangle which reduces the number of lines that need to be checked for intersection for example if the footprint is a triangle only the sides centred
 		//on this point need be checked as the third is occluded.Note is also essential to check if this point is inside the triangle cover for if the foot print is fully enclosed in the triangle.
 		// #
-		float top = 1000000;
+		float top = 100000000;
 		int topp = -1;
 		vec3 p;
 		int toploc = -1;
@@ -635,27 +633,40 @@ for(int trinum; trinum < 2; trinum++){
 			}
 			for(int i = 0; i < 3; i ++){
 				if(i < 2){
-				vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
-					if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true){
-						test2 = true;
-						i = 4;
+					vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
+						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true || check_intercept(vec4(np[1].x,np[1].y,np[2].x,np[2].y),vertice) == true){
+							test2 = true;
+							i = 4;
+						}
+					}
+					else{
+						vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[0].x,triangle[0].y);
+						if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true || check_intercept(vec4(np[1].x,np[1].y,np[2].x,np[2].y),vertice) == true){
+							test2 = true;
+							i = 4;
+						}
 					}
 				}
-				else{
-					vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[0].x,triangle[0].y);
-					if(check_intercept(vec4(np[0].x,np[0].y,np[2].x,np[2].y),vertice) == true){
-						test2 = true;
-						i = 4;
-					}
-				}
-			}
 		}
 		if(count >= 5 && test2 == false){
 			for(int i = 0; i < count; i ++){
-				vec4 vertice = vec4(triangle[i].x,triangle[i].y,triangle[i+1].x,triangle[i+1].y);
-				if(check_intercept(boundaries[i],vertice) == true){
-					test2 = true;
-					i = count + 2;
+				for(int e = 0; e < 3;e++){
+					if(e < 2){
+						vec4 vertice = vec4(triangle[e].x,triangle[e].y,triangle[e+1].x,triangle[e+1].y);
+						if(check_intercept(boundaries[i],vertice) == true){
+							test2 = true;
+							i = count + 2;
+							e = 3;
+						}
+					}
+					else{
+						vec4 vertice = vec4(triangle[0].x,triangle[0].y,triangle[e].x,triangle[e].y);
+						if(check_intercept(boundaries[i],vertice) == true){
+							test2 = true;
+							i = count + 2;
+							e = 3;
+						}
+					}
 				}
 			}
 		}

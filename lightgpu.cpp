@@ -257,9 +257,6 @@ int* genPixel2() {
 	int* list3 = new int[1920 * 1080*4 ];
 	for (int i = 0; i < 1920 * 1080*4; i++) {
 		list3[i] = 0;
-		if (i % 4 == 0) {
-			list3[i] = 3000;
-		}
 	}
 	return list3;
 }
@@ -589,24 +586,24 @@ int main()
 
 	//bind lattice
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[14]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (1 + (200 * 1000 * 27)) * sizeof(GLint), genLattice(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 14, shaderdata[14], 0, (1 + (200 * 1000 * 27)) * sizeof(GLint));
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (1 + 4*(200 * 1000 * 27)) * sizeof(GLint), genLattice(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 14, shaderdata[14], 0, (1 + 4*(200 * 1000 * 27)) * sizeof(GLint));
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[15]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, ((200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 15, shaderdata[15], 0, ( (200 * 1000 * 27)) * sizeof(GLint));
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 15, shaderdata[15], 0, ( 4*(200 * 1000 * 27)) * sizeof(GLint));
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[16]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, ((200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 16, shaderdata[16], 0, ((200 * 1000 * 27)) * sizeof(GLint));
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 16, shaderdata[16], 0, (4*(200 * 1000 * 27)) * sizeof(GLint));
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[17]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, ((200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 17, shaderdata[17], 0, ((200 * 1000 * 27)) * sizeof(GLint));
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 17, shaderdata[17], 0, (4*(200 * 1000 * 27)) * sizeof(GLint));
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[18]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, ((200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 18, shaderdata[18], 0, ((200 * 1000 * 27)) * sizeof(GLint));
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 18, shaderdata[18], 0, (4*(200 * 1000 * 27)) * sizeof(GLint));
 	// the two normal shaders can be compiled and linked together whilst the 3 compute shaders must be comiled and linked separately 
 	GLuint programID = compile_shader();
 	GLuint compstage1 = createcompshader(1);
@@ -906,7 +903,7 @@ int main()
 		store<int> bu9 = readbuffer(bufmap10, 5000 * 4 + 4);
 		int count2 = 0;
 		if (count == 0) {
-			for (int dd = 0; dd < 500; dd += 4) {
+			for (int dd = 0; dd < 2000; dd += 4) {
 				//cout << "checker \n";
 				//if (bu9.get(dd) >= 0) {
 				cout << bu9.get(dd) << " " << bu9.get(dd + 1) << " " << bu9.get(dd + 2) << " " << bu9.get(dd + 3) << "        " << dd / 4 << " end \n";
