@@ -71,8 +71,8 @@ int adj[12][6];
 int triiter = 0;
 vec3 gpos;
 int getCubeLocation(ivec3 coords){
-	ivec3 tcoords = ivec3(coords.x-coords.x%10,coords.y-coords.y%10,coords.z-coords.z%10);
-	return tcoords.x*highpos.z*10*highpos.y*10 +tcoords.y*10*highpos.z + tcoords.z;
+	ivec3 tcoords = ivec3(coords.x-coords.x%10,coords.y-coords.y%10,coords.z-coords.z%10)/10;
+	return (tcoords.x*highpos.z*10*highpos.y*10 +tcoords.y*10*highpos.z + tcoords.z)*5;
 }
 void addFinalCube(ivec3 cubepos){
 	int startpos = getCubeLocation(cubepos);

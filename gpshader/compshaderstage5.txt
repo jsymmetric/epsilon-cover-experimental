@@ -226,9 +226,10 @@ ivec3[26] adjacent(ivec3 coord, ivec3 coord2){
 	int meta[] = getTopLevel(coord2);
 	int rangeStart = meta[0];
 	int rangeEnd = meta[1];
-	//if(rangeStart > 0 && coord.z >= 800 && coord.x > 10){
-		//intd[10] = ivec4(rangeStart,rangeEnd,10,100);
-	//}
+	if(coord.x == coord2.x && coord.y == coord2.y && coord.z == coord2.z){
+		int trac = atomicAdd(tracker[6],1) + 11;
+		intd[10+trac] = ivec4(rangeStart,rangeEnd,10,100);
+	}
 	int p = 0;
 	for(int i = rangeStart; i <= rangeEnd; i++){ 
 		ivec3 Ccoord = granular[i].xyz;
@@ -361,7 +362,6 @@ int checkBorder(ivec3 toCheck){
 	return abs(toCheck.x)+ abs(toCheck.y) +abs(toCheck.z);
 }
 void main(){
-
 	uint TrueWorkGroupID_X = gl_WorkGroupID.x + u_WorkGroupOffset;
 
 	ivec3 storeadj [8][26];
@@ -398,7 +398,7 @@ void main(){
 			storeadj[i] = adjacent(coord,hadjacent[i]);
 			int e= 0;
 			while(storeadj[i][e].x != -1 && e < 26){
-				adjcnt[e] = storeadj[i][e];
+				adjcnt[ee] = storeadj[i][e];
 				ee++;
 				e++;
 			}
@@ -415,11 +415,12 @@ void main(){
 			e++;
 		}
 	}		
-	storeadj[7] = adjacent(coord,coord);
-	if(storeadj[0][0].z > 600){
-			//intd[10] = ivec4(midpos,highpos,100);
-			//intd[11] = ivec4(storeadj[0][0].xyz,10);
-	}
+	adjcnt[7] = adjacent(coord,coord)[0];
+	//if(adjcnt[0].z >= 0){
+			//intd[10] = ivec4(0,0,100,120);
+			//int trac = atomicAdd(tracker[6],1) + 11;
+			//intd[trac] = ivec4(adjcnt[7].xyz,10);
+	//}
 	int e= 0;
 	while(storeadj[7][e].x != -1){
 		adjcnt[ee] = storeadj[7][e];
@@ -437,10 +438,10 @@ void main(){
 	//}
 
 	set_lattice(latticenum,0,ivec4(granular[int(TrueWorkGroupID_X)].xyz,100));
-	if(granular[int(TrueWorkGroupID_X)].y > 500 && TrueWorkGroupID_X < 600000){
-		intd[12].x = int(TrueWorkGroupID_X);
+	//if(granular[int(TrueWorkGroupID_X)].y > 500 && TrueWorkGroupID_X < 600000){
+		//intd[12].x = int(TrueWorkGroupID_X);
 
-	}
+	//}
 	for(int i = 0; i < 26;i++){
 		//if(adjcnt[i].x != -1){
 			set_lattice(latticenum,iter,ivec4(adjcnt[i],10));

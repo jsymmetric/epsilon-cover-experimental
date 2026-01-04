@@ -9,7 +9,7 @@ layout(std430, binding = 11) buffer pixels{
 uniform layout(size4x32,binding = 0) coherent iimage2D uSampler;
 void main()
 {	
-	ivec2 si = ivec2(1080,1920);
+	ivec2 si = ivec2(1920,1080);
 	int x = int(texcoord0.x*si.x);
 	int y = int(texcoord0.y*si.y);
 	ivec2 coord = ivec2(x,y);

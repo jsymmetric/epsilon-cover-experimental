@@ -685,8 +685,8 @@ do{
 //}}}
 if(test3 == 1){
 if(GlobalPos.z == 8 && GlobalPos.x > 0 && posi.z != 3){
-	int tracloc = atomicAdd(tracker[7],2);
-	floatd[tracloc].xyz = vec3(posi);
+	//int tracloc = atomicAdd(tracker[7],2);
+	//floatd[tracloc].xyz = vec3(posi);
 }	
 	set_cubelist2(posi.x,posi.y,posi.z);
 

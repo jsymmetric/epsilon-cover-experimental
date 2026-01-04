@@ -903,7 +903,7 @@ int main()
 		store<int> bu9 = readbuffer(bufmap10, 5000 * 4 + 4);
 		int count2 = 0;
 		if (count == 0) {
-			for (int dd = 0; dd < 2000; dd += 4) {
+			for (int dd = 0; dd < 5000; dd += 4) {
 				//cout << "checker \n";
 				//if (bu9.get(dd) >= 0) {
 				cout << bu9.get(dd) << " " << bu9.get(dd + 1) << " " << bu9.get(dd + 2) << " " << bu9.get(dd + 3) << "        " << dd / 4 << " end \n";

@@ -150,7 +150,7 @@ void main(){
 	coord.x = coord.x/(highpos.x*20*10);
 	coord.y = coord.y/(highpos.y*20*10);
 	coord.z = coord.z/(highpos.z*20*10);
-	coord = coord + vec3(0.25,0.25,0);
+	//coord = coord + vec3(0.25,0.25,0);
 	coord.z = coord.z + adjust;
 	//coord = coord+transform;
 	//coord = coord*rotate;
@@ -166,15 +166,10 @@ void main(){
 		pixloc.x = int(1920*coord.x);
 		pixloc.y = int(1920*coord.y);
 		Epixloc.x = int(1920*Ecoord.x);
-		Epixloc.y = int(19200*Ecoord.y);
+		Epixloc.y = int(1920*Ecoord.y);
 		int xd = 2*(Epixloc.x - pixloc.x);
 		int yd =2*(Epixloc.y-pixloc.y);
 		//if(finalLattice[gl_WorkGroupID.x*27].z > 500){
-		
-		if(gl_WorkGroupID.x < 100000){
-
-		//intd[tracloc].w = int(gl_WorkGroupID.x);
-		}
 		int x = pixloc.x;
 		int y = pixloc.y;
 		//for(int x = Epixloc.x; x < Epixloc.x+xd; x++){
