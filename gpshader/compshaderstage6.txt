@@ -183,6 +183,10 @@ void main(){
 				if(imageLoad(uSampler,ivec2(x,y)).w  == 0 || imageLoad(uSampler,ivec2(x,y)).w > coord.z){
 
 					imageStore(uSampler,ivec2(x,y),ivec4(0,250,coord.z,coord.z));
+					ivec3 coord2 = ivec3(get_lattice(int(gl_WorkGroupID.x),0).xyz);
+					if(coord2.x%100 == 0 || coord2.y%100 == 0){
+						imageStore(uSampler,ivec2(x,y),ivec4(250,0,0,coord.z));
+					}
 				}
 			}
 			//}

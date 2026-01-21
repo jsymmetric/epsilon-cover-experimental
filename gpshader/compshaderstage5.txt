@@ -226,10 +226,10 @@ ivec3[26] adjacent(ivec3 coord, ivec3 coord2){
 	int meta[] = getTopLevel(coord2);
 	int rangeStart = meta[0];
 	int rangeEnd = meta[1];
-	if(coord.x == coord2.x && coord.y == coord2.y && coord.z == coord2.z){
+	/*if(coord.x == coord2.x && coord.y == coord2.y && coord.z == coord2.z){
 		int trac = atomicAdd(tracker[6],1) + 11;
 		intd[10+trac] = ivec4(rangeStart,rangeEnd,10,100);
-	}
+	}*/
 	int p = 0;
 	for(int i = rangeStart; i <= rangeEnd; i++){ 
 		ivec3 Ccoord = granular[i].xyz;
@@ -416,11 +416,11 @@ void main(){
 		}
 	}		
 	adjcnt[7] = adjacent(coord,coord)[0];
-	//if(adjcnt[0].z >= 0){
-			//intd[10] = ivec4(0,0,100,120);
-			//int trac = atomicAdd(tracker[6],1) + 11;
-			//intd[trac] = ivec4(adjcnt[7].xyz,10);
-	//}
+	if(adjcnt[0].z >= 0){
+			intd[10] = ivec4(0,0,100,120);
+			int trac = atomicAdd(tracker[6],1) + 11;
+			intd[trac] = ivec4(adjcnt[7].xyz,10);
+	}
 	int e= 0;
 	while(storeadj[7][e].x != -1){
 		adjcnt[ee] = storeadj[7][e];

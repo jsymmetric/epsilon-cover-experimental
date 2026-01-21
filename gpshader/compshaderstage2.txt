@@ -147,15 +147,18 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 	float disc = c1*b2 - b1*c2;
 
 		float t2 = (a1*b2 - a2*b1)/disc;
-		if(gl_WorkGroupID.z >= 1 && (10- gl_WorkGroupID.x) <= gl_WorkGroupID.y && gl_WorkGroupID.x > 0){
+		/*
+		if((gl_WorkGroupID.x) == 4 && gl_WorkGroupID.y == 4 && gl_WorkGroupID.x > 0){
 			int tracloc = atomicAdd(tracker[7],3);
-			floatd[tracloc].xy = gpos.xy;
-			floatd[tracloc].z = t2;//vec3( granular[gl_WorkGroupID.x].xyz);
-			floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
-			floatd[tracloc + 1].xyz = gl_WorkGroupID;
-		}
+			floatd[tracloc].xy = centreline.xy;
+			floatd[tracloc].zw = centreline.zw;
+			//floatd[tracloc].z = ;//vec3( granular[gl_WorkGroupID.x].xyz);
+			//floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
+			floatd[tracloc + 1].xyzw = triline.xyzw;
+			floatd[tracloc + 2].xyzw = vec4(t2,(a1*c2 - a2*c1)/disc,disc,100);
+		}*/
 		if(disc != 0){
-		if(t2 < 0){
+		if(t2 <= 0){
 			float t1 = (a1*c2 - a2*c1)/disc;
 			if(t1 <= 1 && t1 >= 0){
 
@@ -231,7 +234,6 @@ vec4 get_mostdistant(vec3 x1, vec3[3] y1){
 bool check_intercept(vec4 x1,vec4 x2){
 	//checks if two 2d lines on a plane intercept in the boundary between there ends, inputn takes form vec4(x1,y1,x2,y2) ie the two end points in one four vec.
 	bool check = false;
-
 	float a1 = x2.x - x1.x;
 	float a2 = x2.y - x1.y;
 	float b1 = (x2.z - x2.x);
@@ -241,6 +243,16 @@ bool check_intercept(vec4 x1,vec4 x2){
 	float disc = c1*b2 - b1*c2;
 	if(disc != 0){
 		float t2 = (a1*b2 - a2*b1)/disc;
+		/*
+		if((gl_WorkGroupID.x) == 4 && gl_WorkGroupID.y == 3 && gl_WorkGroupID.x > 0){
+			int tracloc = atomicAdd(tracker[7],4);
+			floatd[tracloc].xy = x1.xy;
+			floatd[tracloc].zw = x1.zw;
+			//floatd[tracloc].z = ;//vec3( granular[gl_WorkGroupID.x].xyz);
+			//floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
+			floatd[tracloc + 1].xyzw = x2.xyzw;
+			floatd[tracloc + 2].xyzw = vec4(t2,(a1*c2 - a2*c1)/disc,disc,100);
+		}*/
 		if(t2 >= 0 && t2 <= 1){
 			float t1 = (a1*c2 - a2*c1)/disc;
 			if(t1 <= 1 && t1 >= 0){
@@ -438,7 +450,7 @@ for(int trinum; trinum < 2; trinum++){
 
 		if(cross[1] == 0){
 			if(cross[0] == -1){
-				vec3 point = get_intersect(corner[1]=plane,corner[0]-plane);
+				vec3 point = get_intersect(corner[1]-plane,corner[0]-plane);
 				intersection[count] = vec4(point,3);
 				count = count + 1;
 			}

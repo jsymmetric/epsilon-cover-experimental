@@ -437,7 +437,7 @@ do{
 
 			if(cross[1] == 0){
 				if(cross[0] == -1){
-					vec3 point = get_intersect(corner[1]=plane,corner[0]-plane);
+					vec3 point = get_intersect(corner[1]-plane,corner[0]-plane);
 					intersection[count] = vec4(point,3);
 					count = count + 1;
 				}

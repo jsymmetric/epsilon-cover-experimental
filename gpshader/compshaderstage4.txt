@@ -176,15 +176,6 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 	ivec3 localPos = get_cubelist2(int(gl_WorkGroupID.x));
 	ivec3 place =posi+localPos*10+ivec3(GlobalPos)*100; 
 	float t2 = (a1*b2 - a2*b1)/disc;
-	/*
-		if(place.z == 833 && (1000- place.x) <= place.y && place.x > 100 && place.x < 800){
-			int tracloc = atomicAdd(tracker[7],3);
-			floatd[tracloc].xy = place.xy;
-			floatd[tracloc].z = t2;//vec3( granular[gl_WorkGroupID.x].xyz);
-			floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
-			floatd[tracloc + 1].xyz = ivec3(GlobalPos);
-		}
-	*/
 	if(disc != 0){
 		if(t2 < 0){
 			float t1 = (a1*c2 - a2*c1)/disc;
@@ -193,7 +184,15 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 				return true;
 			}
 		}
-	}
+	}/*
+	if(place.x == place.y && place. y > 850){
+		int tracloc = atomicAdd(tracker[7],3);
+		floatd[tracloc].xyz = place;
+		//floatd[tracloc].z = ;//vec3( granular[gl_WorkGroupID.x].xyz);
+		//floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
+		floatd[tracloc + 1] = boundaries[0];
+		floatd[tracloc + 2].xyzw = vec4(t2,(a1*c2 - a2*c1)/disc,disc,100);
+	}*/
 	for(int i = 0; i < len; i++){
 		vec4 cubeline = boundaries[i];
 		float a1 = centreline.x - cubeline.x;
@@ -446,7 +445,7 @@ do{
 		int count = 0;
 		if(cross[0] == 0){
 			if(cross[1] == -1){
-				vec3 point = get_intersect(corner[0]-plane,corner[1]=plane);
+				vec3 point = get_intersect(corner[0]-plane,corner[1]-plane);
 				intersection[count] = vec4(point,3);
 				count = count + 1;
 			}
@@ -499,7 +498,7 @@ do{
 
 			}
 		}
-
+		
 		if(cross[3] == 0){
 			if(cross[2] == -1){
 				vec3 point = get_intersect(corner[3]-plane,corner[2]-plane);
@@ -517,7 +516,7 @@ do{
 				count = count + 1;
 			}
 		}
-
+		
 		if(cross[4] == 0){
 			if(cross[5] == -1){
 				vec3 point = get_intersect(corner[4]-plane,corner[5]-plane);
@@ -535,7 +534,7 @@ do{
 				count = count + 1;
 			}
 		}
-
+		
 		if(cross[5] == 0){
 			if(cross[1] == -1){
 				vec3 point = get_intersect(corner[5]-plane,corner[1]-plane);
@@ -553,7 +552,7 @@ do{
 				count = count + 1;
 			}
 		}
-
+		
 		if(cross[6] == 0){
 			if(cross[2] == -1){
 				vec3 point = get_intersect(corner[6]-plane,corner[2]-plane);
@@ -571,7 +570,7 @@ do{
 				count = count + 1;
 			}
 		}
-
+		
 		if(cross[7] == 0){
 			if(cross[6] == -1){
 				vec3 point = get_intersect(corner[7]-plane,corner[6]-plane);
@@ -626,7 +625,7 @@ do{
 		}
 
 		int nos0 = topp;
-		int nos1 = number;
+		int nos1 = toploc;
 		int pos0 = toploc;
 		int pos1 = 0;
 		for(int i = 0; i < count; i++){
@@ -637,6 +636,16 @@ do{
 			pos0 = pos1;
 		}
 		vec4 centreline = vec4(p.x,p.y,triangle[mostdistpos].x,triangle[mostdistpos].y);
+		ivec3 posi = ivec3(gl_LocalInvocationID.xyz);
+		ivec3 place =posi+localPos*10+ivec3(GlobalPos)*100; 
+		if(place.x == place.y && place. y > 850){
+			int tracloc = atomicAdd(tracker[7],3);
+			floatd[tracloc].xyz = place;
+			//floatd[tracloc].z = ;//vec3( granular[gl_WorkGroupID.x].xyz);
+			//floatd[tracloc].w = ;
+			floatd[tracloc + 1] = boundaries[3];
+			floatd[tracloc + 2].xyzw = vec4(number,toploc, intersection[toploc].w,100);
+		}
 		bool test2 = check_engulf(mostdistpos, count, boundaries,centreline,triangle);
 	/////////////////////////////////////////////////////
 	// noow it precedes to check line intersection if the above checks failed
