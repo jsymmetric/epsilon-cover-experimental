@@ -9,7 +9,7 @@ layout(std430,binding = 0) buffer rotdata{
 	vec4 rot[10*1000];
 };
 layout(std430,binding = 1) buffer facedata{
-	vec3 Faces[10*1000*3];
+	vec4 Faces[100*1000*3];
 };
 layout(std430,binding = 2) buffer trilist{
 	int tripos1[1000*5000];
@@ -36,37 +36,77 @@ layout(std430, binding = 9) buffer finalCubes{
 	ivec3 highpos;
 	ivec3 midpos;
 	int granularEnd;
-	int toplevel[1000*1000*5];
-	int granular[1000*10000];
+	int toplevel[3*1000*1000*5];
+	//ivec4 granular[3*1000*1000];
 };
-layout(std430, binding = 10) buffer pixels{
+layout(std430, binding = 10) buffer finalCubes0{
+	int toplevel1[3*1000*1000*5];
+};
+layout(std430, binding = 11) buffer finalCubes1{
+	ivec4 granular1[3*1000*1000];
+};
+layout(std430, binding = 12) buffer finalCubes2{
+	ivec4 granular2[3*1000*1000];
+};
+
+layout(std430, binding = 13) buffer pixels{
 	ivec2 pixelWidth;
-	vec4 pixelBuffer[1960*1080];
+	vec4 pixelBuffer[1920*1080];
 };
-layout(std430, binding =11) buffer floatDebug{
+layout(std430, binding =14) buffer floatDebug{
     vec4 floatd[1000*1000];
 };
-layout(std430, binding = 12) buffer transform{
+layout(std430, binding = 15) buffer transform{
 	mat3 projection;
 };
-layout(std430, binding =13) buffer intDebug{
+layout(std430, binding =16) buffer intDebug{
     ivec4 intd[1000*1000];
 };
-layout(std430, binding = 14) buffer lattice{
+layout(std430, binding = 17) buffer lattice{
 	int latticeInc;
-	ivec4 finalLattice[200*1000*27];
+	ivec4 finalLattice[400*1000*13];
 };
-layout(std430, binding = 15) buffer lattice2{
-	ivec4 finalLattice2[200*1000*27];
+layout(std430, binding = 18) buffer lattice2{
+	ivec4 finalLattice2[400*1000*13];
 };
-layout(std430, binding = 16) buffer lattice3{
-	ivec4 finalLattice3[200*1000*27];
+layout(std430, binding = 19) buffer lattice3{
+	ivec4 finalLattice3[400*1000*13];
 };
-layout(std430, binding = 17) buffer lattice4{
-	ivec4 finalLattice4[200*1000*27];
+layout(std430, binding = 20) buffer lattice4{
+	ivec4 finalLattice4[400*1000*13];
 };
-layout(std430, binding = 18) buffer lattice5{
-	ivec4 finalLattice5[200*1000*27];
+layout(std430, binding = 21) buffer lattice5{
+	ivec4 finalLattice5[400*1000*13];
+};
+layout(std430, binding = 22) buffer lattice6{
+	ivec4 finalLattice6[400*1000*13];
+};
+layout(std430, binding = 23) buffer lattice7{
+	ivec4 finalLattice7[400*1000*13];
+};
+layout(std430, binding = 24) buffer lattice8{
+	ivec4 finalLattice8[400*1000*13];
+};
+layout(std430, binding = 25) buffer lattice9{
+	ivec4 finalLattice9[400*1000*13];
+};
+layout(std430, binding = 26) buffer lattice10{
+	ivec4 finalLattice10[400*1000*13];
+};
+layout(std430, binding = 27) buffer lattice11{
+	ivec4 finalLattice11[400*1000*13];
+};
+layout(std430, binding = 28) buffer lattice12{
+	ivec4 finalLattice12[400*1000*13];
+};
+layout(std430, binding = 29) buffer lattice13{
+	ivec4 finalLattice13[400*1000*13];
+};
+layout(std430, binding = 30) buffer lattice14{
+	ivec4 finalLattice14[400*1000*13];
+};
+layout(std430, binding = 31) buffer lattice15{
+	ivec4 finalLattice15[400*1000*13];
 };
 vec3 corner[8];
 int adj[12][6];
@@ -98,9 +138,9 @@ int get_trilist2(int x, int y, int z, int w){
 int get_trilist3(int x, int y, int z, int w){
 	return tripos3[x*100*5000 + y*10*5000 + z*5000 + w];
 };
-void set_trilist1(int x, int y, int z, int add, int w){
-	tripos1[x*highpos.z*highpos.y*5000 + y*highpos.z*5000 + z*5000 + w] = add;
-	//triiter++;
+void set_trilist1(int x, int y, int z, int add){
+	tripos1[x*highpos.z*highpos.y*5000 + y*highpos.z*5000 + z*5000 + triiter] = add;
+	triiter++;
 };
 void set_trilist2(int x, int y, int z, int add){
 	tripos2[x*10*10*5000 + y*10*5000+ z*5000 + triiter] = add;
@@ -136,6 +176,7 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 	if(tpos == 2){
 		triline = vec4(triangle[0].x,triangle[0].y,triangle[1].x,triangle[1].y);
 	}
+
 	//eq2 x1.z - x2.z = t2*(x2.w - x2.z) - t1*(x1.w- x1.z) 
 	//eq1 x1.x - triline.x = t2*(triline.y-triline.x) - t1*(x1.y-x1.x)
 	float a1 = -centreline.x + triline.x;
@@ -145,27 +186,16 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 	float c1 = (centreline.z - centreline.x);
 	float c2 = (centreline.w - centreline.y);
 	float disc = c1*b2 - b1*c2;
-
-		float t2 = (a1*b2 - a2*b1)/disc;
-		/*
-		if((gl_WorkGroupID.x) == 4 && gl_WorkGroupID.y == 4 && gl_WorkGroupID.x > 0){
-			int tracloc = atomicAdd(tracker[7],3);
-			floatd[tracloc].xy = centreline.xy;
-			floatd[tracloc].zw = centreline.zw;
-			//floatd[tracloc].z = ;//vec3( granular[gl_WorkGroupID.x].xyz);
-			//floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
-			floatd[tracloc + 1].xyzw = triline.xyzw;
-			floatd[tracloc + 2].xyzw = vec4(t2,(a1*c2 - a2*c1)/disc,disc,100);
-		}*/
-		if(disc != 0){
-		if(t2 <= 0){
+	float t2 = (a1*b2 - a2*b1)/disc;
+	if(disc != 0){
+		if(t2 <= 0+1e-4){
 			float t1 = (a1*c2 - a2*c1)/disc;
-			if(t1 <= 1 && t1 >= 0){
-
+			if(t1 <= 1+1e-4 && t1 >= 0-1e-4){
 				return true;
 			}
 		}
 	}
+
 	if(chck == false){
 		for(int i = 0; i < len; i++){
 			vec4 cubeline = boundaries[i];
@@ -180,7 +210,7 @@ bool check_engulf(int tpos, int len, vec4 boundaries[10], vec4 centreline, vec3 
 				float t2 = (a1*b2 - a2*b1)/disc;
 				if(t2 < 0){
 					float t1 = (a1*c2 - a2*c1)/disc;
-					if(t1 <= 1 && t1 >= 0){
+					if(t1 <= 1+1e-8 && t1 >= 0-1e-8){
 						//demonstrates triangles corner is inside square
 						chck = true;
 						return true;
@@ -222,11 +252,11 @@ float get_longestline(vec3 x1,vec3[3] triangle){
 vec4 get_mostdistant(vec3 x1, vec3[3] y1){
 	float least = get_sep(x1,y1[0]);
 	vec4 ret = vec4(y1[0].xyz,0);
-	if(least > get_sep(x1,y1[1])){
+	if(least < get_sep(x1,y1[1])){
 		least = get_sep(x1,y1[1]);
 		ret = vec4(y1[1].xyz,1);
 	}
-	if(least > get_sep(x1,y1[2])){
+	if(least < get_sep(x1,y1[2])){
 		ret = vec4(y1[2].xyz,2);
 	}
 	return ret;
@@ -243,33 +273,16 @@ bool check_intercept(vec4 x1,vec4 x2){
 	float disc = c1*b2 - b1*c2;
 	if(disc != 0){
 		float t2 = (a1*b2 - a2*b1)/disc;
-		/*
-		if((gl_WorkGroupID.x) == 4 && gl_WorkGroupID.y == 3 && gl_WorkGroupID.x > 0){
-			int tracloc = atomicAdd(tracker[7],4);
-			floatd[tracloc].xy = x1.xy;
-			floatd[tracloc].zw = x1.zw;
-			//floatd[tracloc].z = ;//vec3( granular[gl_WorkGroupID.x].xyz);
-			//floatd[tracloc].w = (a1*c2 - a2*c1)/disc;
-			floatd[tracloc + 1].xyzw = x2.xyzw;
-			floatd[tracloc + 2].xyzw = vec4(t2,(a1*c2 - a2*c1)/disc,disc,100);
-		}*/
-		if(t2 >= 0 && t2 <= 1){
+		if(t2 >= 0-1e-5 && t2 <= 1+1e-5){
 			float t1 = (a1*c2 - a2*c1)/disc;
-			if(t1 <= 1 && t1 >= 0){
+			if(t1 <= 1 + 1e-5 && t1 >= 0-1e-5){
 				check = true;
 			}
 		}
 	}else{
-		if(c1 > 0){
-			float t1  = a1/c1;
-			if(x1.y+ t1*c2 == x2.y){
-				check = true;
-			}
-		}else{
-			float t1  = a1/c2;
-			if(x1.y == x2.y){
-				check = true;
-			}
+		float t1 = (x2.x- x1.x)/x1.z;
+		if(x1.y + t1*x1.w <= x2.y+1e-5 && x1.y + t1*x1.w >= x2.y-1e-5){
+			check = true;
 		}
 	}
 	return check;
@@ -280,9 +293,9 @@ bool test3 = false;
 ivec3 posi = ivec3(gl_WorkGroupID.xyz);
 vec3 pos = posi*scale;
 bool test2 = false;
-for(int trinum; trinum < 2; trinum++){
-	//set_trilist1(posi.x,posi.y,posi.z,trinum);
-	vec3 triangle[3] =vec3[] (Faces[trinum*3],Faces[trinum*3+1],Faces[trinum*3+2]);
+for(int trinum = 0; trinum < tracker[9]; trinum++){
+	test2 = false;
+	vec3 triangle[3] =vec3[] (Faces[trinum*3].xyz,Faces[trinum*3+1].xyz,Faces[trinum*3+2].xyz);
 	vec3 a = rot[trinum].xyz;
 	float theta = rot[trinum].w;
 	mat3 id = mat3(1.0);
@@ -598,6 +611,7 @@ for(int trinum; trinum < 2; trinum++){
 		int number = -1;
 		vec4 boundaries[10];
 		int counter = 0;
+		/*
 		for(int i = 0; i < count; i++){
 			for(int e = 0; e <6; e++){
 				if(intersection[i].w == adj[topp][e]){
@@ -610,16 +624,16 @@ for(int trinum; trinum < 2; trinum++){
 				}
 			}
 		}
-
+		*/
 		int nos0 = topp;
-		int nos1 = number;
+		int nos1 = topp;
 		int pos0 = toploc;
 		int pos1 = 0;
 		for(int i = 0; i < count; i++){
 			//probably bugged
 			pos1 = get_line(nos1,nos0, count,intersection);
 			boundaries[i] = vec4(intersection[pos1].x,intersection[pos1].y,intersection[pos0].x,intersection[pos0].y);
-			nos0 = nos1;
+			nos0 = int(intersection[pos0].w);
 			nos1 = int(intersection[pos1].w);
 			pos0 = pos1;
 		}
@@ -685,8 +699,18 @@ for(int trinum; trinum < 2; trinum++){
 	}
 //}
 if(test2 == true){
+		if(trinum == 1){
+			int inc = atomicAdd(intd[0].x,1);
+			//floatd[inc].xyz = posi.xyz;
+			//floatd[inc].w = inc;
+			//if(posi.x == 0 && posi.y == 8 && posi.z == 8){
+				//inc = atomicAdd(intd[0].x,2);
+				//floatd[inc].x = triiter;
+				//floatd[inc].w = 1011;
+			//}
+		}
 	test3 = true;
-	set_trilist1(posi.x,posi.y,posi.z,trinum,trinum);
+	set_trilist1(posi.x,posi.y,posi.z,trinum);
 	triiter++;
 }
 }

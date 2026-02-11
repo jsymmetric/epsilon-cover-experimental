@@ -28,162 +28,80 @@
 #include <array>
 #include <cmath>
 #include <numbers>
-struct Vector3D {
-	float x, y, z;
-
-	Vector3D() : x(0), y(0), z(0) {}
-	Vector3D(float x, float y, float z) : x(x), y(y), z(z) {}
+#include <filesystem>
+struct Vertex {
+	float coords[3]; // Accessible as v.coords[0], [1], [2] (x, y, z)
 };
 
 struct Triangle {
-	//Vector3D normal;
-	Vector3D vertices[3];
-
-	Triangle() = default;
-	Triangle(const Vector3D& v1, const Vector3D& v2, const Vector3D& v3) {
-		vertices[0] = v1;
-		vertices[1] = v2;
-		vertices[2] = v3;
-		// Calculate normal (optional - STL files typically include normals)
-		//calculateNormal();
-	}
+	// Array of 3 vertices, allowing iterative access
+	Vertex vertices[3];
+	
+	// Helper for easy access: triangle[0] returns first vertex
 };
-
-class STLLoader {
-public:
-	// Load STL file (both ASCII and binary formats)
-	static bool loadSTL(const std::string& filename, std::vector<Triangle>& triangles) {
-		std::ifstream file(filename, std::ios::binary);
+vector<float> getTriangles(vector<Triangle> tri) {
+	vector<float> corners;
+	for (int u = 0;  u < 100 * 1000 * 12; u++) {
+		corners.push_back(0);
+	}
+	int counter = 0;
+	for(int i = 0; i < tri.size(); i++)
+		for (int e = 0; e < 3;  e++) {
+			for (int r = 0; r < 3; r++) {
+				corners[counter] = tri[i].vertices[e].coords[r];
+				counter++;
+			}
+			counter++;
+		}
+	return corners;
+}
+std::vector<Triangle> loadSTL(const std::string& filename) {
+	std::ifstream file(filename, std::ios::binary);
+	std::streamsize size = file.tellg();
+	if (size < 0) {
+		cout << size << " size\n";
 		if (!file.is_open()) {
-			std::cerr << "Error: Could not open file " << filename << std::endl;
-			return false;
-		}
-
-		// Check if file is ASCII or binary
-		if (isASCIISTL(file)) {
-			return loadASCIISTL(filename, triangles);
-		}
-		else {
-			return loadBinarySTL(file, triangles);
+			cout << "opened\n";
 		}
 	}
+	if (!file) throw std::runtime_error("Could not open STL file.");
 
-private:
-	// Check if STL file is in ASCII format
-	static bool isASCIISTL(std::ifstream& file) {
-		file.seekg(0);
-		std::string line;
-		std::getline(file, line);
+	file.seekg(80); // Skip header
 
-		// Check if first line contains "solid"
-		if (line.find("solid") != std::string::npos) {
-			// Additional check: look for "facet" in the next few lines
-			std::streampos currentPos = file.tellg();
-			for (int i = 0; i < 5; ++i) {
-				std::getline(file, line);
-				if (line.find("facet") != std::string::npos) {
-					file.seekg(currentPos);
-					return true;
-				}
-			}
-		}
-		file.seekg(0);
-		return false;
+	uint32_t numTriangles;
+	file.read(reinterpret_cast<char*>(&numTriangles), sizeof(numTriangles));
+
+	std::vector<Triangle> triangles;
+	triangles.reserve(numTriangles);
+	cout << numTriangles << " number of triangles \n";
+	for (uint32_t i = 0; i < numTriangles; ++i) {
+		file.seekg(12, std::ios::cur); // Skip Normal (3 * 4 bytes)
+
+		Triangle tri;
+		// Read all 3 vertices (3 * 3 * 4 bytes) in one block
+		file.read((char*)&tri.vertices[0].coords[0], 4);
+		file.read((char*)&tri.vertices[0].coords[1], 4);
+		file.read((char*)&tri.vertices[0].coords[2], 4);
+		//cout << tri.vertices[0].coords[0] << " " << tri.vertices[0].coords[1] << " " << tri.vertices[0].coords[2] << "\n";
+		//cout << file.tellg() << " position1 \n";
+		file.read((char*)&tri.vertices[1].coords[0], 4);
+		file.read((char*)&tri.vertices[1].coords[1], 4);
+		file.read((char*)&tri.vertices[1].coords[2], 4);
+		//cout << tri.vertices[1].coords[0] << " " << tri.vertices[1].coords[1] << " " << tri.vertices[1].coords[2] << "\n";
+		//cout << file.tellg() << " position2 \n";
+		file.read((char*)&tri.vertices[2].coords[0], 4);
+		file.read((char*)&tri.vertices[2].coords[1], 4);
+		file.read((char*)&tri.vertices[2].coords[2], 4);
+		//cout << tri.vertices[2].coords[0] << " " << tri.vertices[2].coords[1] << " " << tri.vertices[2].coords[2] << "\n";
+		//cout << file.tellg() << " position3 \n";
+		file.seekg(2, std::ios::cur); // Skip Attribute byte count
+		triangles.push_back(tri);
 	}
 
-	// Load ASCII STL format
-	static bool loadASCIISTL(const std::string& filename, std::vector<Triangle>& triangles) {
-		std::ifstream file(filename);
-		if (!file.is_open()) {
-			return false;
-		}
-
-		std::string line;
-		Triangle currentTriangle;
-		int vertexCount = 0;
-
-		while (std::getline(file, line)) {
-			// Trim whitespace
-			line.erase(0, line.find_first_not_of(" \t\r\n"));
-			line.erase(line.find_last_not_of(" \t\r\n") + 1);
-
-			if (line.find("facet normal") == 0) {
-				// Read normal
-				sscanf_s(line.c_str(), "facet normal %f %f %f");
-				vertexCount = 0;
-			}
-			else if (line.find("vertex") == 0) {
-				// Read vertex
-				Vector3D vertex;
-				sscanf_s(line.c_str(), "vertex %f %f %f", &vertex.x, &vertex.y, &vertex.z);
-				currentTriangle.vertices[vertexCount++] = vertex;
-
-				if (vertexCount == 3) {
-					triangles.push_back(currentTriangle);
-				}
-			}
-			else if (line.find("endfacet") == 0) {
-				// Triangle complete
-				if (vertexCount == 3) {
-					triangles.push_back(currentTriangle);
-				}
-			}
-		}
-
-		return !triangles.empty();
-	}
-
-	// Load binary STL format
-	static bool loadBinarySTL(std::ifstream& file, std::vector<Triangle>& triangles) {
-		file.seekg(0, std::ios::end);
-		std::streamsize fileSize = file.tellg();
-		file.seekg(0, std::ios::beg);
-
-		// Skip header (80 bytes)
-		file.seekg(80, std::ios::cur);
-
-		// Read number of triangles
-		uint32_t numTriangles;
-		file.read(reinterpret_cast<char*>(&numTriangles), sizeof(numTriangles));
-
-		if (fileSize < 84 + numTriangles * 50) {
-			std::cerr << "Error: File appears to be truncated" << std::endl;
-			return false;
-		}
-
-		triangles.resize(numTriangles);
-
-		for (uint32_t i = 0; i < numTriangles; ++i) {
-			Triangle triangle;
-			// Read normal
-			char normalx = 'r';
-			char normaly = 'r';
-			char normalz = 'r';
-			file.read(reinterpret_cast<char*>(&normalx), sizeof(float));
-			file.read(reinterpret_cast<char*>(&normaly), sizeof(float));
-			file.read(reinterpret_cast<char*>(&normalz), sizeof(float));
-			// Read vertices
-
-			for (int j = 0; j < 3; ++j) {
-				file.read(reinterpret_cast<char*>(&triangle.vertices[j].x), sizeof(float));
-				file.read(reinterpret_cast<char*>(&triangle.vertices[j].y), sizeof(float));
-				file.read(reinterpret_cast<char*>(&triangle.vertices[j].z), sizeof(float));
-			}
-
-			// Skip attribute byte count (2 bytes)
-			file.seekg(2, std::ios::cur);
-
-			triangles[i] = triangle;
-		}
-		return true;
+	return triangles;
+}
 
 
-
-
-
-
-	}
-};
 
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
@@ -203,20 +121,42 @@ std::vector<float> genTranslations() {
 	float aspect = 1080.0f / 1960.0f;
 	// float zn = 1960.0f / std::tan(angle_radians); // zn is not used in the return array
 
-	// Use aggregate initialization for the vector
-	std::vector<float> projection = {
-		1.0f/(aspect*factor), 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f/(aspect * factor), 0.0f,0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 0.0f
+	// rotation matrix
+	std::vector<float> roty = {
+		cos(fb), 0.0f, sin(fb),0.0f,
+		0.0f, 1.0f, 0.0f,0.0f,
+		-sin(fb), 0.0f, cos(fb),0.0f,
+		0.0f,0.0f,0.0f,0.0f
 	};
-
-	return projection; // The data is safely copied/moved
+	std::vector<float> rotz = {
+	cos(angleadjust),-sin(angleadjust), 0.0f,0.0f,
+	sin(angleadjust), cos(angleadjust), 0.0f,0.0f,
+	0.0f, 0.0f, 1.0f,0.0f,
+	0.0f,0.0f,0.0f,1.0f
+	};
+	vector<float> rotation = {
+		1.0f,0.0f,0.0f,0.f,
+		0.0f,1.0f,0.0f,0.0f,
+		0.0f,0.0f,1.0f,0.0f,
+		0.0f,0.0f,0.0f,0.0f
+	};
+	float sum = 0;
+	for (int y = 0; y < 4; y++) {
+		for (int x = 0; x < 4; x++) {
+			for (int z = 0; z < 4; z++) {
+				sum += roty[y * 4 + z] * rotz[x * 4 + z];
+			};
+			//cout << "hereyyy" << y << " \n";
+			rotation[y*4+x] = sum;
+			sum = 0;
+		};
+	}
+	return rotation; // The data is safely copied/moved
 }
 int* genTrilist() {
 	int* list1 = new int[1000 * 5000];
 	for (int i = 0; i < 1000*5000; i++) {
-		list1[i] = 0;
+		list1[i] = -1;
 	}
 	return list1;
 }
@@ -257,21 +197,37 @@ int* genPixel2() {
 	int* list3 = new int[1920 * 1080*4 ];
 	for (int i = 0; i < 1920 * 1080*4; i++) {
 		list3[i] = 0;
+		if ((i + 1) % 4 == 0) {
+			list3[i] = 100000000000;
+		}
 	}
 	return list3;
 }
 int* genLinked(int x, int y, int z) {
-	int* list4 = new int[7 + 1000 * 1000 * 5 + 10 * 1000 * 1000*4];
+	int* list4 = new int[7 + 3*1000 * 1000 * 5];
 	list4[0] = x;
 	list4[1] = y;
 	list4[2] = z;
 	cout << "highpos " << x << " " << y << " " << z << "\n";
-	for (int i = 3; i < 7 + 1000 * 1000 * 5 + 10 * 1000 * 1000*4; i++) {
+	for (int i = 3; i < 7 + 3*1000 * 1000 * 5; i++) {
 		list4[i] = 0;
 	}
 	return list4;
 }
-
+int* genLinked2(int x, int y, int z) {
+	int* list4 = new int[ 3 * 1000 * 1000 * 5 + 6];
+	for (int i = 3; i < 3 * 1000 * 1000 * 5; i++) {
+		list4[i] = 0;
+	}
+	return list4;
+}
+int* genLinked3(int x, int y, int z) {
+	int* list4 = new int[ 3 * 1000 * 1000 * 4];
+	for (int i = 3; i < 3 * 1000 * 1000 * 4; i++) {
+		list4[i] = 0;
+	}
+	return list4;
+}
 float* rotation(float scale) {
 	float* list5 = new float[10 * 1000 * 9 + 3];
 	list5[0] = scale;
@@ -330,11 +286,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (key == GLFW_KEY_D && action == GLFW_PRESS) {
 		angleadjust -= 0.1;
 	}
-	if (key == GLFW_KEY_W && action == GLFW_REPEAT) {
-		fb -= 0.3;
+	if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+		fb -= 0.1;
 	}
-	if (key == GLFW_KEY_S && action == GLFW_REPEAT) {
-		fb += 0.3;
+	if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+		fb += 0.1;
 	}
 }
 
@@ -377,8 +333,7 @@ float* testTriangles() {
 }
 int main()
 {
-	//std::vector<Triangle> triangles;
-	//STLLoader::loadSTL("E:\Sample_Hull_Mesh.stl", triangles);
+	std::vector<Triangle> triangles = loadSTL("E:\cube.stl");
 	// standard opengl initiation code follows
 	if (!glfwInit())
 	{
@@ -395,7 +350,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(1920, 1080, "Render system prototype v1(voxel)", NULL, NULL);
+	window = glfwCreateWindow(1920, 1080, "epsilon cover sampling system prototype", NULL, NULL);
 	if (window == NULL) {
 		getchar();
 		glfwTerminate();
@@ -445,14 +400,15 @@ int main()
 
 	//cout << texadd;
 	glerrorstring(glGetError());
+	/*
 	float triangles[] = {
-		0, 0, 0,0,
-		0, 1, 0,0,
-		0, 1, 1,0,
 		0, 1, 1,0,
 		1, 1, 1,0,
-		1, 0, 1,0
-	};
+		1, 0, 1,0,
+		0, 0, 0,0,
+		0, 1, 0,0,
+		0, 1, 1,0
+	};*/
 	/*float triangles[] = {
 		0, 1.0, 2.0,0,
 		3.0, 4.0, 5.0,0,
@@ -468,47 +424,71 @@ int main()
 	float lowery = 10000;
 	float lowerz = 10000;
 	//float triangles[] = testTriangles();
-	/*
+	
 	for (int i = 0; i < triangles.size(); i++) {
 		for (int e = 0; e < 3; e++) {
-			if (triangles[i].vertices[e].x > upperx) {
-				upperx = triangles[i].vertices[e].x;
+			if (triangles[i].vertices[e].coords[0]> upperx) {
+				upperx = triangles[i].vertices[e].coords[0];
 			}
-			if (triangles[i].vertices[e].y > uppery) {
-				uppery = triangles[i].vertices[e].y;
+			if (triangles[i].vertices[e].coords[1] > uppery) {
+				uppery = triangles[i].vertices[e].coords[1];
 			}
-			if (triangles[i].vertices[e].z > upperz) {
-				upperz = triangles[i].vertices[e].z;
+			if (triangles[i].vertices[e].coords[2] > upperz) {
+				upperz = triangles[i].vertices[e].coords[2];
 			}
 
 
-			if (triangles[i].vertices[e].x < lowerx) {
-				lowerx = triangles[i].vertices[e].x;
+			if (triangles[i].vertices[e].coords[0] < lowerx) {
+				lowerx = triangles[i].vertices[e].coords[0];
 			}
-			if (triangles[i].vertices[e].y < lowery) {
-				lowery = triangles[i].vertices[e].y;
+			if (triangles[i].vertices[e].coords[1] < lowery) {
+				lowery = triangles[i].vertices[e].coords[1];
 			}
-			if (triangles[i].vertices[e].z < lowerz) {
-				lowerz = triangles[i].vertices[e].z;
+			if (triangles[i].vertices[e].coords[2] < lowerz) {
+				lowerz = triangles[i].vertices[e].coords[2];
 			}
 		}
 
-	}*/
+	}/*
 	lowerz = -0.1;
 	lowery = -0.1;
 	lowerx = -0.1;
 	upperx = 1.1;
 	uppery = 1.1;
 	upperz = 1.1;
+	*/
+	for (int i = 0; i < triangles.size(); i++) {
+		for (int e = 0; e < 3; e++) {
+			triangles[i].vertices[e].coords[0] -= lowerx;
+			triangles[i].vertices[e].coords[1] -= lowery;
+			triangles[i].vertices[e].coords[2] -= lowerz;
+		}
 
+	}
+	/*
+	for (int i = 0; i < triangles.size(); i++) {
+		for (int e = 0; e < 3; e++) {
+			cout << triangles[i].vertices[e].coords[0] << " " << triangles[i].vertices[e].coords[1] << " " << triangles[i].vertices[e].coords[2] << " " << "\n";
+		}
+
+	}*/
 	float deltax = upperx - lowerx;
 	float deltay = uppery - lowery;
 	float deltaz = upperz - lowerz;
+	if (deltax == 0) {
+		deltax = 1;
+	}
+	if (deltay == 0) {
+		deltay == 1;
+	}
+	if (deltaz == 0) {
+		deltaz = 1;
+	}
 	float minimum = deltaz;
 	cout << deltax;
-	cout << " ";
+	cout << " d ";
 	cout << deltay;
-	cout << " ";
+	cout << " d ";
 	cout << upperz;
 
 	if (deltax < minimum) {
@@ -526,84 +506,105 @@ int main()
 	cout << "\n" << x << " " << y << " " << z << "\n";
 	float scale = minimum / cubebase;
 	cout << scale << " scale \n";
-	GLuint shaderdata[19];
-	glGenBuffers(19, shaderdata);
+	GLuint shaderdata[31];
+	int bufcount = 0;
+	glGenBuffers(32, shaderdata);
 
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[0]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	//rotation
 	glBufferData(GL_SHADER_STORAGE_BUFFER, (10*1000*9+3)*sizeof(float), rotation(scale), GL_STATIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, shaderdata[0], 0, (3+10*1000*9)*sizeof(GLfloat));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (3+10*1000*9)*sizeof(GLfloat));
+	bufcount++;
 	//bind triangles;
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[1]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, 100*sizeof(GLfloat), &triangles[0], GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 1, shaderdata[1], 0, (100*1000*3) * sizeof(GLfloat));
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (100 * 1000 * 3) * sizeof(GLfloat) * 4, &getTriangles(triangles)[0], GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (100*1000*3) * sizeof(GLfloat)*4);
+	bufcount++;
 	//bind trilist1
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[2]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 1000 * 5000 * sizeof(int), genTrilist(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 2, shaderdata[2], 0, 1000 * 5000 * sizeof(int));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 1000 * 5000 * sizeof(int));
 	cout << "her3";
+	bufcount++;
 	//bind trilist2
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[3]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 1000 * 5000 * sizeof(GLint), genTrilist(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 3, shaderdata[3], 0, 1000 * 5000 * sizeof(GLint));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 1000 * 5000 * sizeof(GLint));
+	bufcount++;
 	//bind trilist3
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[4]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 1000 * 5000 * sizeof(GLint), genTrilist(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 4, shaderdata[4], 0, 1000 * 5000 * sizeof(GLint));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 1000 * 5000 * sizeof(GLint));
+	bufcount++;
 	//bind cubelist
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[5]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 1000 * 3 * sizeof(GLint), genCubelist(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 5, shaderdata[5], 0, 1000 * 3 * sizeof(GLint));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 1000 * 3 * sizeof(GLint));
+	bufcount++;
 	//bind cubelist1
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[6]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 1000 * 3 * sizeof(GLint), genCubelist(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 6, shaderdata[6], 0, 1000 * 3 * sizeof(GLint));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 1000 * 3 * sizeof(GLint));
+	bufcount++;
 	//bind cubelist2
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[7]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 1000 * 3 * sizeof(GLint), genCubelist(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 7, shaderdata[7], 0, 1000 * 3 * sizeof(GLint));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 1000 * 3 * sizeof(GLint));
+	bufcount++;
 	//bind tracking value
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[8]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, 10 * sizeof(GLint), NULL, GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 8, shaderdata[8], 0, 10* sizeof(GLint));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 10* sizeof(GLint));
+	bufcount++;
 	//bind final cubes
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[9]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (6+1000*1000*5 + 10*1000*1000)* sizeof(GLint), genLinked(x,y,z), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 9, shaderdata[9], 0, (6 + 1000 * 1000 * 5 + 10 * 1000 * 1000) * sizeof(GLint));
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (6 + 3 * 1000 * 1000 * 5) * sizeof(GLint), genLinked(x,y,z), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (6 + 3*1000 * 1000 * 5) * sizeof(GLint));
+	bufcount++;
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (3 * 1000 * 1000 * 5) * sizeof(GLint), genLinked2(x, y, z), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (3 * 1000 * 1000 * 5) * sizeof(GLint));
+	bufcount++;
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, ( 4 * 3 * 1000 * 1000) * sizeof(GLint), genLinked3(x, y, z), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, ( 4 * 3 * 1000 * 1000) * sizeof(GLint));
+	bufcount++;
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (4 * 3 * 1000 * 1000) * sizeof(GLint), genLinked3(x, y, z), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (4 * 3 * 1000 * 1000) * sizeof(GLint));
+	bufcount++;
 	//bind pixel buffer
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[10]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, (2 + 1920 * 1080) * sizeof(GLfloat), genPixel(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 10, shaderdata[10], 0, (2+1920*1080) * sizeof(GLfloat));
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (2+1920*1080) * sizeof(GLfloat));
+	bufcount++;
 
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[11]);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, (1000*1000*4) * sizeof(GLfloat), genFloat(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 11, shaderdata[11], 0, (1000*4*1000) * sizeof(GLfloat));
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[13]);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (1000*4*1000) * sizeof(GLfloat));
+	bufcount++;
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, 16 * sizeof(GLfloat), genTranslations().data(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, 16 * sizeof(GLfloat));
+	int transloc = bufcount;
+	bufcount++;
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, (1000 * 1000*4) * sizeof(GLint), genIntegers(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 13, shaderdata[13], 0, (1000 * 4 * 1000) * sizeof(GLint));
-
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (1000 * 4 * 1000) * sizeof(GLint));
+	bufcount++;
 	//bind lattice
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[14]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (1 + 4*(200 * 1000 * 27)) * sizeof(GLint), genLattice(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 14, shaderdata[14], 0, (1 + 4*(200 * 1000 * 27)) * sizeof(GLint));
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[15]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 15, shaderdata[15], 0, ( 4*(200 * 1000 * 27)) * sizeof(GLint));
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[16]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 16, shaderdata[16], 0, (4*(200 * 1000 * 27)) * sizeof(GLint));
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[17]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 17, shaderdata[17], 0, (4*(200 * 1000 * 27)) * sizeof(GLint));
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[18]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, (4*(200 * 1000 * 27)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 18, shaderdata[18], 0, (4*(200 * 1000 * 27)) * sizeof(GLint));
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, (1 + 4*(400 * 1000 * 13)) * sizeof(GLint), genLattice(), GL_DYNAMIC_READ);
+	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (1 + 4*(400 * 1000 * 13)) * sizeof(GLint));
+	bufcount++;
+	for (int i = 0; i < 15;i++) {
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[bufcount]);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, (4 * (400 * 1000 * 13)) * sizeof(GLint), genLattice2(), GL_DYNAMIC_READ);
+		glBindBufferRange(GL_SHADER_STORAGE_BUFFER, bufcount, shaderdata[bufcount], 0, (4 * (400 * 1000 * 13)) * sizeof(GLint));
+		bufcount++;
+		cout << " looping\n";
+		glerrorstring(glGetError());
+	}
 	// the two normal shaders can be compiled and linked together whilst the 3 compute shaders must be comiled and linked separately 
 	GLuint programID = compile_shader();
 	GLuint compstage1 = createcompshader(1);
@@ -621,7 +622,7 @@ int main()
 	glLinkProgram(compstage4);
 	glLinkProgram(compstage5);
 	glLinkProgram(compstage6);
-	int facenum = 2;// triangles.size();
+	int facenum = triangles.size();
 	void* bufmap3 = glMapNamedBuffer(shaderdata[1], GL_READ_ONLY);
 	int bracket = 0 * 1;
 	store<float> bu3f = readbufferF(bufmap3, 1000 * 5000);
@@ -843,24 +844,24 @@ int main()
 	}
 	glFinish();
 	GLuint texadd;
-
+	int* fPixel = genPixel2();
 	glGenTextures(1, &texadd);
 	int count = 0;
-	cout << "here1 " << cubenum << "\n";
+	cout << "final cube count  " << cubenum << "\n";
 	glerrorstring(glGetError());
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[12]);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, 16 * sizeof(GLfloat), genTranslations().data(), GL_DYNAMIC_READ);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 12, shaderdata[12], 0, 16 * sizeof(GLfloat));
 
-	glBindTexture(GL_TEXTURE_2D, texadd);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32I, 1920, 1080, 0, GL_RGBA_INTEGER, GL_INT, genPixel2());
-	GLuint* point = NULL;
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glBindImageTexture(0, texadd, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32I);
 	do {
+		glBindTexture(GL_TEXTURE_2D, texadd);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32I, 1920, 1080, 0, GL_RGBA_INTEGER, GL_INT, fPixel);
+		GLuint* point = NULL;
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glBindImageTexture(0, texadd, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32I);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderdata[transloc]);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, 12 * sizeof(GLfloat), genTranslations().data(), GL_DYNAMIC_READ);
+		glBindBufferRange(GL_SHADER_STORAGE_BUFFER,transloc, shaderdata[transloc], 0, 12 * sizeof(GLfloat));
 		//cout << "\n";
 		//printMap(but);
 		//glUnmapNamedBuffer(shaderdata[0]);
@@ -899,11 +900,11 @@ int main()
 		}
 
 		if (count == 0) {
-		void* bufmap10 = glMapNamedBuffer(shaderdata[11], GL_READ_ONLY);
+		void* bufmap10 = glMapNamedBuffer(shaderdata[14], GL_READ_ONLY);
 		store<float> bu9 = readbufferF(bufmap10, 5000 * 4 + 4);
 		int count2 = 0;
 		if (count == 0) {
-			for (int dd = 0; dd < 500; dd += 4) {
+			for (int dd = 0; dd < 20*4; dd += 4) {
 				//cout << "checker \n";
 				//if (bu9.get(dd) >= 0) {
 				cout << bu9.get(dd) << " " << bu9.get(dd + 1) << " " << bu9.get(dd + 2) << " " << bu9.get(dd + 3) << "        " << dd / 4 << " end \n";
@@ -930,7 +931,7 @@ int main()
 			}
 		}
 
-		glUnmapNamedBuffer(shaderdata[13]);
+		glUnmapNamedBuffer(shaderdata[14]);
 	}
 		//bufmap10 = glMapNamedBuffer(shaderdata[8], GL_READ_ONLY);
 		//store<int> bu90 = readbuffer(bufmap10, 7);
@@ -950,7 +951,7 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT);
 		glBufferData(GL_ARRAY_BUFFER, 30 * sizeof(GLint), &g_vertex_buffer_data[0], GL_STATIC_DRAW);
 
-		// 1rst attribute buffer : vertices
+		// 1rst attribute buffer : Vertex
 		glEnableVertexAttribArray(0);
 		glEnableVertexAttribArray(1);
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);

@@ -7,7 +7,7 @@ layout(std430,binding = 0) buffer rotdata{
 	vec4 rot[10*1000];
 };
 layout(std430,binding = 1) buffer facedata{
-	vec3 Faces[10*1000*3];
+	vec4 Faces[100*1000*3];
 };
 layout(std430,binding = 2) buffer trilist{
 	int tripos1[1000*5000];
@@ -34,43 +34,100 @@ layout(std430, binding = 9) buffer finalCubes{
 	ivec3 highpos;
 	ivec3 midpos;
 	int granularEnd;
-	int toplevel[1000*1000*5];
-	ivec4 granular[1000*1000];
+	int toplevel[3*1000*1000*5];
+	//ivec4 granular[3*1000*1000];
+};
+layout(std430, binding = 10) buffer finalCubes0{
+	int toplevel1[3*1000*1000*5];
+};
+layout(std430, binding = 11) buffer finalCubes1{
+	ivec4 granular1[3*1000*1000];
+};
+layout(std430, binding = 12) buffer finalCubes2{
+	ivec4 granular2[3*1000*1000];
 };
 
-layout(std430, binding = 10) buffer pixels{
+layout(std430, binding = 13) buffer pixels{
 	ivec2 pixelWidth;
 	vec4 pixelBuffer[1920*1080];
 };
-layout(std430, binding =11) buffer floatDebug{
+layout(std430, binding =14) buffer floatDebug{
     vec4 floatd[1000*1000];
 };
-layout(std430, binding = 12) buffer transform{
+layout(std430, binding = 15) buffer transform{
 	mat3 projection;
 };
-layout(std430, binding =13) buffer intDebug{
+layout(std430, binding =16) buffer intDebug{
     ivec4 intd[1000*1000];
 };
-layout(std430, binding = 14) buffer lattice{
+layout(std430, binding = 17) buffer lattice{
 	int latticeInc;
-	ivec4 finalLattice[200*1000*27];
+	ivec4 finalLattice[400*1000*13];
 };
-layout(std430, binding = 15) buffer lattice2{
-	ivec4 finalLattice2[200*1000*27];
+layout(std430, binding = 18) buffer lattice2{
+	ivec4 finalLattice2[400*1000*13];
 };
-layout(std430, binding = 16) buffer lattice3{
-	ivec4 finalLattice3[200*1000*27];
+layout(std430, binding = 19) buffer lattice3{
+	ivec4 finalLattice3[400*1000*13];
 };
-layout(std430, binding = 17) buffer lattice4{
-	ivec4 finalLattice4[200*1000*27];
+layout(std430, binding = 20) buffer lattice4{
+	ivec4 finalLattice4[400*1000*13];
 };
-layout(std430, binding = 18) buffer lattice5{
-	ivec4 finalLattice5[200*1000*27];
+layout(std430, binding = 21) buffer lattice5{
+	ivec4 finalLattice5[400*1000*13];
+};
+layout(std430, binding = 22) buffer lattice6{
+	ivec4 finalLattice6[400*1000*13];
+};
+layout(std430, binding = 23) buffer lattice7{
+	ivec4 finalLattice7[400*1000*13];
+};
+layout(std430, binding = 24) buffer lattice8{
+	ivec4 finalLattice8[400*1000*13];
+};
+layout(std430, binding = 25) buffer lattice9{
+	ivec4 finalLattice9[400*1000*13];
+};
+layout(std430, binding = 26) buffer lattice10{
+	ivec4 finalLattice10[400*1000*13];
+};
+layout(std430, binding = 27) buffer lattice11{
+	ivec4 finalLattice11[400*1000*13];
+};
+layout(std430, binding = 28) buffer lattice12{
+	ivec4 finalLattice12[400*1000*13];
+};
+layout(std430, binding = 29) buffer lattice13{
+	ivec4 finalLattice13[400*1000*13];
+};
+layout(std430, binding = 30) buffer lattice14{
+	ivec4 finalLattice14[400*1000*13];
+};
+layout(std430, binding = 31) buffer lattice15{
+	ivec4 finalLattice15[400*1000*13];
 };
 vec3 corner[8];
 int adj[12][6];
 int triiter = 0;
 uniform uint u_WorkGroupOffset;
+ivec4 getGranular(int location){
+	if(location < 3*1000*1000){
+		return granular1[location];
+	}
+	if(location > 3*1000*1000 && location < 3*1000*1000*2){
+		return granular2[location - 3*1000*1000];
+	}
+	return ivec4(0,0,0,0);
+}
+int getTopSubLevel(int location){
+	if(location < 3*1000*1000*5){
+		return toplevel[location];
+	}
+	if(location > 3*1000*1000*5 && location < 3*1000*1000*2*5){
+		return toplevel1[location - 3*1000*1000*5];
+	}
+	return 0;
+}
 int get_line(int x, int y,int count,vec4 intersection[10]){
 	int ret = -1;
 	int counter = 0;
@@ -89,39 +146,101 @@ int get_line(int x, int y,int count,vec4 intersection[10]){
 }
 
 void set_lattice(int pos, int adj, ivec4 add){
+//pos = pos + 2000*1000;
 	int t = pos;
-	if(t  < 200*1000){
-		finalLattice[pos*27 + adj] = add;
+	if(t  < 400*1000){
+		finalLattice[pos*13 + adj] = add;
 	}
-	if(t >= 200*1000 && t  < 400*1000){
-		finalLattice2[pos*27 + adj - 200*1000*27] = add;
+	if(t >= 400*1000 && t  < 800*1000){
+		finalLattice2[pos*13 + adj - 400*1000*13] = add;
 	}
-	if(t >= 400*1000 && t  < 600*1000){
-		finalLattice3[pos*27 + adj - 400*1000*27] = add;
+	if(t >= 800*1000 && t  < 1200*1000){
+		finalLattice3[pos*13 + adj - 800*1000*13] = add;
 	}
-	if(t >= 600*1000 && t  < 800*1000){
-		finalLattice4[pos*27 + adj -600*1000*27] = add;
+	if(t >= 1200*1000 && t  < 1600*1000){
+		finalLattice4[pos*13 + adj -1200*1000*13] = add;
 	}
-	if(t >= 800*1000 && t  < 1000*1000){
-		finalLattice5[pos*27 + adj-800*1000*27] = add;
+	if(t >= 1600*1000 && t  < 2000*1000){
+		finalLattice5[pos*13 + adj-1600*1000*13] = add;
+	}
+	if(t >= 2000*1000 && t  < 2400*1000){
+		finalLattice6[pos*13 + adj - 2000*1000*13] = add;
+	}
+	if(t >= 2400*1000 && t  < 2800*1000){
+		finalLattice7[pos*13 + adj - 2400*1000*13] = add;
+	}
+	if(t >= 2800*1000 && t  < 3200*1000){
+		finalLattice8[pos*13 + adj -2800*1000*13] = add;
+	}
+	if(t >= 3200*1000 && t  < 3600*1000){
+		finalLattice9[pos*13 + adj-3200*1000*13] = add;
+	}
+	if(t >= 3600*1000 && t  < 4000*1000){
+		finalLattice10[pos*13 + adj - 3600*1000*13] = add;
+	}
+	if(t >= 4000*1000 && t  < 4400*1000){
+		finalLattice11[pos*13 + adj - 4000*1000*13] = add;
+	}
+	if(t >= 4400*1000 && t  < 4800*1000){
+		finalLattice12[pos*13 + adj -4400*1000*13] = add;
+	}
+	if(t >= 4800*1000 && t  < 5200*1000){
+		finalLattice13[pos*13 + adj-4800*1000*13] = add;
+	}
+	if(t >= 5200*1000 && t  < 5600*1000){
+		finalLattice14[pos*13 + adj -5200*1000*13] = add;
+	}
+	if(t >= 5600*1000 && t  < 6000*1000){
+		finalLattice15[pos*13 + adj-5600*1000*13] = add;
 	}
 }
 ivec4 get_lattice(int pos, int adj){
+//pos = pos + 800*1000;
 	int t = pos;
-	if(t  < 200*1000){
-		return finalLattice[pos*27 + adj];
+	if(t  < 400*1000){
+		return finalLattice[pos*13 + adj];
 	}
-	if(t >= 200*1000 && t  < 400*1000){
-		return finalLattice2[pos*27 + adj-200*1000*27];
+	if(t >= 400*1000 && t  < 800*1000){
+		return finalLattice2[pos*13 + adj-400*1000*13];
 	}
-	if(t >= 400*1000 && t  < 600*1000){
-		return finalLattice3[pos*27 + adj-400*1000*27];
+	if(t >= 800*1000 && t  < 1200*1000){
+		return finalLattice3[pos*13 + adj-800*1000*13];
 	}
-	if(t >= 600*1000 && t  < 800*1000){
-		return finalLattice4[pos*27 + adj-600*1000*27];
+	if(t >= 1200*1000 && t  < 1600*1000){
+		return finalLattice4[pos*13 + adj-1200*1000*13];
 	}
-	if(t >= 800*1000 && t  < 1000*1000){
-		return finalLattice5[pos*27 + adj-800*1000*27];
+	if(t >= 1600*1000 && t  < 2000*1000){
+		return finalLattice5[pos*13 + adj-1600*1000*13];
+	}
+	if(t >= 2000*1000 && t  < 2400*1000){
+		return finalLattice6[pos*13 + adj - 2000*1000*13];
+	}
+	if(t >= 2400*1000 && t  < 2800*1000){
+		return finalLattice7[pos*13 + adj - 2400*1000*13];
+	}
+	if(t >= 2800*1000 && t  < 3200*1000){
+		return finalLattice8[pos*13 + adj -2800*1000*13];
+	}
+	if(t >= 3200*1000 && t  < 3600*1000){
+		return finalLattice9[pos*13 + adj-3200*1000*13];
+	}
+	if(t >= 3600*1000 && t  < 4000*1000){
+		return finalLattice10[pos*13 + adj - 3600*1000*13];
+	}
+	if(t >= 4000*1000 && t  < 4400*1000){
+		return finalLattice11[pos*13 + adj - 4000*1000*13];
+	}
+	if(t >= 4400*1000 && t  < 4800*1000){
+		return finalLattice12[pos*13 + adj -4400*1000*13];
+	}
+	if(t >= 4800*1000 && t  < 5200*1000){
+		return finalLattice13[pos*13 + adj-4800*1000*13];
+	}
+	if(t >= 5200*1000 && t  < 5600*1000){
+		return finalLattice14[pos*13 + adj -5200*1000*13];
+	}
+	if(t >= 5600*1000 && t  < 6000*1000){
+		return finalLattice15[pos*13 + adj-5600*1000*13];
 	}
 	return ivec4(-1,-1,-1,-1);
 }
@@ -214,7 +333,7 @@ int[5] getTopLevel(ivec3 coords){
 	coords = (coords-coords%10)/10;
 	int place = coords.x*highpos.z*highpos.y*100*5 + coords.y*highpos.z*10*5 + coords.z*5;
 	for(int i = 0; i < 5;i++){
-		ret[i] = toplevel[place+i];
+		ret[i] = getTopSubLevel(place+i);
 	}
 	return ret;
 }
@@ -232,11 +351,11 @@ ivec3[26] adjacent(ivec3 coord, ivec3 coord2){
 	}*/
 	int p = 0;
 	for(int i = rangeStart; i <= rangeEnd; i++){ 
-		ivec3 Ccoord = granular[i].xyz;
+		ivec3 Ccoord = getGranular(i).xyz;
 		ivec3 check = coord- Ccoord;
 		if(check.x <=1 && check.y <= 1 && check.z <= 1){
 			if(check.x >= -1 && check.y >= -1 && check.z >= -1){
-				adjacent[p] = granular[i].xyz;
+				adjacent[p] = getGranular(i).xyz;
 			}
 		}
 	}
@@ -372,7 +491,7 @@ void main(){
 		}
 		adjcnt[uu] = ivec3(-1,-1,-1);
 	}
-	ivec3 coord = granular[int(TrueWorkGroupID_X)].xyz;
+	ivec3 coord = getGranular(int(TrueWorkGroupID_X)).xyz;
 	ivec3 boundaries[] = get_borders(coord);
 	int lowt = checkBorder(boundaries[0]);
 	int hight = checkBorder(boundaries[1]);
@@ -426,27 +545,27 @@ void main(){
 		adjcnt[ee] = storeadj[7][e];
 		ee++;
 		e++;
-	}
+	}	
+
+
 	for(int i = 0; i < ee; i++){
 		if(adjacent2(adjcnt,adjcnt[i],getAdjType(adjcnt[i],coord))){
 			adjcnt[i].x = -1;
 		}
 	}
 	int iter = 1;
+	if(coord.z < 2000 && coord.x < 2000 && coord.y < 2000 && coord.x >= 0 && coord.z >= 0 && coord.y >= 0){
 	int latticenum = atomicAdd(latticeInc,1);
-	//if(granular[TrueWorkGroupID_X].z >= 700 &&  granular[int(TrueWorkGroupID_X)].x > 0){
-	//}
-
-	set_lattice(latticenum,0,ivec4(granular[int(TrueWorkGroupID_X)].xyz,100));
-	//if(granular[int(TrueWorkGroupID_X)].y > 500 && TrueWorkGroupID_X < 600000){
-		//intd[12].x = int(TrueWorkGroupID_X);
-
-	//}
-	for(int i = 0; i < 26;i++){
-		//if(adjcnt[i].x != -1){
+	//if(latticenum > 5.6e6){
+		int inc = atomicAdd(intd[0].x,1);
+		//atomicAdd(intd[1].x,1);
+		//floatd[0].x = float(intd[1].x); 
+	set_lattice(latticenum,0,ivec4(getGranular(int(TrueWorkGroupID_X)).xyz,100));
+	for(int i = 0; i < 12;i++){
+		if(adjcnt[i].x != -1){
 			set_lattice(latticenum,iter,ivec4(adjcnt[i],10));
 			iter++;
-		//}
+		}
 	}
 	/*
 		int tracloc = atomicAdd(tracker[7],3);
@@ -456,4 +575,4 @@ void main(){
 			intd[11].x = latticenum/27;
 		}*/
 //intd[20].xyz = ivec3(latticenum,1000,1000);
-}
+}}

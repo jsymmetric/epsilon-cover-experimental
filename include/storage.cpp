@@ -69,10 +69,10 @@ GLuint compile_shader() {
 	string dir = "C:\\Users\\johnm\\source\\repos\\lightgpu\\gpshader";
 	//wstring direct = wstring(dir);
 	//cout << dir;
-	std::string dirV = dir + "\\vertexshader.txt";
-	std::string dirC1 = dir + "\\compshaderstage1.txt";
-	std::string dirC2 = dir + "\\compshaderstage2.txt";
-	std::string dirF = dir + "\\fragmentshader.txt";
+	std::string dirV = dir + "\\vertexshader.glsl";
+	std::string dirC1 = dir + "\\compshaderstage1.glsl";
+	std::string dirC2 = dir + "\\compshaderstage2.glsl";
+	std::string dirF = dir + "\\fragmentshader.glsl";
 
 	ifstream vertsh;
 	vertsh.open(dirV, ios::in);
@@ -133,7 +133,7 @@ GLuint compile_shader() {
 GLuint createcompshader(int nos) {
 	cout << "compiling shader" << nos << "\n";
 	string dir = "C:\\Users\\johnm\\source\\repos\\lightgpu\\gpshader";
-	std::string dirC = dir + "\\compshaderstage" + to_string (nos) +".txt";
+	std::string dirC = dir + "\\compshaderstage" + to_string (nos) +".glsl";
 	//cout << dirC;
 	ifstream computsh(dirC, ios::in);
 	string comp = "";
